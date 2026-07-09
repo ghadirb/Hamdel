@@ -74,7 +74,8 @@ class DemoRelationshipAiEngine : RelationshipAiEngine {
     }
 
     private fun score(text: String, words: List<String>): Int {
-        return words.sumOf { word -> if (text.contains(word)) 9 else 0 }
+        val scorer: (String) -> Int = { word -> if (text.contains(word)) 9 else 0 }
+        return words.sumOf(scorer)
     }
 
     private fun clamp(value: Int): Int = min(100, max(0, value))

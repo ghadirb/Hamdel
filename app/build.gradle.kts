@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.kapt")
+}
+
+val secretsProperties = Properties().apply {
+    val secretsFile = rootProject.file("secrets.properties")
+    if (secretsFile.exists()) {
+        secretsFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -19,6 +28,16 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Password used to decrypt the remote keys.txt (see encrypt_keys.py).
+        // Stored in a gitignored secrets.properties so it is never committed.
+        // Falls back to an empty string (e.g. in CI) so the public build still compiles;
+        // the app simply keeps using the local demo AI engine when no password is set.
+        buildConfigField(
+            "String",
+            "KEYS_DECRYPT_PASSWORD",
+            "\"${secretsProperties.getProperty("KEYS_DECRYPT_PASSWORD", "")}\""
+        )
     }
 
     buildTypes {
@@ -77,6 +96,9 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
