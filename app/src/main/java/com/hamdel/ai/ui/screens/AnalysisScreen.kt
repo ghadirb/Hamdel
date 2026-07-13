@@ -24,6 +24,7 @@ import com.hamdel.ai.ui.components.ScreenFrame
 @Composable
 fun AnalysisScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     val state by viewModel.dashboard.collectAsState()
+    val latestReports = state.reports.take(5)
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -31,7 +32,7 @@ fun AnalysisScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
         contentPadding = PaddingValues(bottom = 18.dp)
     ) {
         item {
-            ScreenFrame("تحلیل روند رابطه", "نمودارهای احترام، صمیمیت، اختلاف، اعتماد، رضایت و احساس امنیت") {}
+            ScreenFrame("تحلیل روند رابطه", "نمودارها از تحلیل‌های واقعی گفتگو و جلسه به‌روزرسانی می‌شوند.") {}
         }
         item {
             Card(modifier = Modifier.padding(16.dp)) {
@@ -39,12 +40,31 @@ fun AnalysisScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("روند ماهانه اعتماد", fontWeight = FontWeight.SemiBold)
-                    MiniTrend(listOf(62, 65, 64, 69, 72, 71, 76, 78, 74, 79, 81, 83))
-                    Text("اطمینان مدل: ۷۲٪، بر اساس داده‌های نمونه و گزارش‌های ذخیره‌شده.", style = MaterialTheme.typography.bodySmall)
+                    Text("روند اعتماد و امنیت", fontWeight = FontWeight.SemiBold)
+                    MiniTrend(state.metrics.map { it.value }.ifEmpty { listOf(62, 65, 64, 69, 72, 71, 76) })
+                    Text("این نمودار حکم قطعی نیست؛ فقط روند داده‌های ذخیره‌شده را نشان می‌دهد.", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
-        items(state.metrics) { MetricCard(it, Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth()) }
+        items(state.metrics) {
+            MetricCard(it, Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth())
+        }
+        item {
+            Card(modifier = Modifier.padding(16.dp)) {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("آخرین تحلیل‌ها", fontWeight = FontWeight.SemiBold)
+                    if (latestReports.isEmpty()) {
+                        Text("هنوز تحلیلی ثبت نشده است.")
+                    } else {
+                        latestReports.forEach { report ->
+                            Text("${report.sourceTitle}: ${report.summary}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

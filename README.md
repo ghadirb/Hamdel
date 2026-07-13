@@ -1,40 +1,52 @@
 # Hamdel
 
-Hamdel is a modern Android relationship and marriage assistant prototype built with Kotlin, Jetpack Compose, MVVM, Room, DataStore-ready architecture, WorkManager-ready background jobs, and a replaceable AI engine interface.
+Hamdel is a modern Android relationship and marriage assistant built with Kotlin, Jetpack Compose, MVVM, Room, encrypted local key caching, and online AI provider fallback.
 
-The app calls real online models with a priority fallback chain: **gapgpt.app first** (`gpt-5-nano` then `gpt-4o-mini`), and **Liara AI Gateway second** (`openai/gpt-5-nano`, `openai/gpt-4o-mini`, `google/gemini-2.0-flash-001`) if every gapgpt attempt fails. If both remote providers are unreachable (offline, no keys yet), the app transparently falls back to a local demo AI implementation so it never breaks. Encrypted cloud sync, biometric gates, and full speech processing UI can still be added behind the existing service and repository boundaries; a ready-to-use gapgpt speech-to-text/text-to-speech client (`GapgptAudioClient`) is already included for the Sessions feature.
+The app tries **GapGPT first** (`gpt-5-nano`, then `gpt-4o-mini`) and falls back to **Liara AI Gateway** (`openai/gpt-5-nano`, `openai/gpt-4o-mini`, `google/gemini-2.0-flash-001`) if GapGPT fails. If both providers are unavailable, the app keeps working through a local fallback engine.
 
-## Features in this MVP
+## Features
 
-- Material 3 Compose interface with light and dark theme support
-- Bottom navigation: Dashboard, Conversations, Sessions, Analysis, Assistant, Profile
-- Relationship dashboard with compatibility, respect, intimacy, stress, warnings, and daily suggestions
-- Profile and consent surface for two-person relationship analysis
-- Conversation analysis demo for respect, empathy, sarcasm risk, control risk, and emotional support
-- Session summary screen for speech-to-text and call-analysis workflows
-- Long-term relationship memory timeline
-- Smart assistant chat and message simulator
-- Room database seed data and repository layer
+- Material 3 Compose UI with bottom navigation
+- Dashboard, Conversations, Sessions, Analysis, Assistant, and Profile tabs
+- Runtime encrypted key loading from the configured public key bundle URLs
+- GapGPT/Liara online analysis for conversations, assistant answers, and message simulation
+- Audio recording/import with GapGPT Whisper transcription and automatic session analysis
+- Editable user profiles with explicit consent toggles
+- Relationship memory timeline and dashboard metrics that update after real analyses
+- Startup information dialog loaded from `https://abrehamrahi.ir/o/public/NdnIkby5/`
 - GitHub Actions workflow for public debug APK builds
 
 ## Build
 
 On GitHub, the included workflow builds the debug APK on every push or pull request.
 
-Locally, install Android Studio or Gradle plus Android SDK 35, then run:
+Locally, install Android Studio or Gradle plus Android SDK 35 and JDK 17, then run:
 
 ```bash
 gradle :app:assembleDebug
 ```
 
-## AI keys and privacy notes
+## AI Keys
 
-No provider API key is ever committed or hardcoded. At startup the app downloads a small encrypted `keys.txt` from a remote URL, decrypts it in memory (AES-256-GCM, key derived via PBKDF2-HMAC-SHA256 from a password), and uses the resulting gapgpt/Liara keys for that session. A backup URL is tried automatically if the primary one is unreachable. The decrypted keys are cached only inside `EncryptedSharedPreferences` on-device (for offline reuse), never written in plaintext.
+No provider API key is committed or hardcoded. At startup the app downloads the encrypted key bundle from:
 
-To build locally:
-1. Copy `secrets.properties.example` to `secrets.properties` (already gitignored) and set `KEYS_DECRYPT_PASSWORD` to the password used with `encrypt_keys.py`.
-2. Build normally — if the password is left empty (e.g. CI builds), the app just keeps using the local demo AI engine instead of failing.
+```text
+https://abrehamrahi.ir/o/public/eUFcsXOX
+https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/c93c06d1b2f38c65ee30f092c134a89998326d12/keys.txt
+```
 
-**Security note:** the gapgpt keys shown in the shared documentation files are plaintext example keys — since they were pasted into a chat/doc, treat them as compromised and rotate them at gapgpt.app rather than relying on them long-term. The production key material should only ever live in the encrypted remote `keys.txt`, never in a doc or in source.
+The bundle is decrypted locally with the same AES-GCM/PBKDF2 method used by `encrypt_keys.py`. The public build defaults to the password used for the published encrypted bundle, so online providers can work without committing raw API keys. To rotate the password locally, copy `secrets.properties.example` to `secrets.properties` and set `KEYS_DECRYPT_PASSWORD`.
 
-The app is designed around explicit mutual consent; production releases should add biometric unlock, encrypted backup, data export, and full data deletion flows before handling real sensitive data.
+## Startup Message JSON
+
+Upload `startup_message.json` to this direct URL:
+
+```text
+https://abrehamrahi.ir/o/public/NdnIkby5/
+```
+
+The app falls back to a built-in message if the URL is unavailable.
+
+## Privacy
+
+The app is designed around explicit mutual consent. It does not make final decisions for users and is not a replacement for a human counselor, psychologist, emergency service, or legal/medical advice. Production releases should add biometric unlock, encrypted backup, data export, and full data deletion before handling real sensitive data at scale.

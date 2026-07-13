@@ -11,6 +11,7 @@ import com.hamdel.ai.data.model.RelationshipMetric
 import com.hamdel.ai.domain.RelationshipAiEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import java.util.UUID
 
 class RelationshipRepository(
     private val dao: RelationshipDao,
@@ -33,6 +34,7 @@ class RelationshipRepository(
     }
 
     suspend fun seedIfNeeded() {
+        if (dao.metricCount() > 0) return
         dao.upsertMetrics(
             listOf(
                 RelationshipMetric("compatibility", "سازگاری", 82, 6, "هم‌راستایی اهداف، ارزش‌ها و سبک ارتباطی"),
@@ -60,7 +62,23 @@ class RelationshipRepository(
     suspend fun analyzeConversation(title: String, text: String): ConversationReport {
         val report = aiEngine.analyzeConversation(title, text)
         dao.insertReport(report)
+        updateMetricsFrom(report)
+        dao.upsertEvents(
+            listOf(
+                RelationshipEvent(
+                    id = UUID.randomUUID().toString(),
+                    title = "تحلیل گفتگو",
+                    description = report.sourceTitle,
+                    category = "analysis",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        )
         return report
+    }
+
+    suspend fun saveProfile(profile: PersonProfile) {
+        dao.upsertProfile(profile)
     }
 
     suspend fun askAssistant(question: String, state: DashboardState): AiReply {
@@ -69,6 +87,22 @@ class RelationshipRepository(
 
     suspend fun simulateMessage(message: String): MessageSimulation {
         return aiEngine.simulateMessage(message)
+    }
+
+    private suspend fun updateMetricsFrom(report: ConversationReport) {
+        val stress = ((report.sarcasmRisk + report.controlRisk + (100 - report.empathy)) / 3).coerceIn(0, 100)
+        val intimacy = ((report.empathy + report.emotionalSupport) / 2).coerceIn(0, 100)
+        val trust = ((report.honesty + (100 - report.controlRisk)) / 2).coerceIn(0, 100)
+        val compatibility = ((report.respect + intimacy + trust + (100 - stress)) / 4).coerceIn(0, 100)
+        dao.upsertMetrics(
+            listOf(
+                RelationshipMetric("compatibility", "سازگاری", compatibility, 0, "برآورد از آخرین تحلیل‌های گفتگو و جلسه"),
+                RelationshipMetric("respect", "احترام متقابل", report.respect, 0, "کیفیت مرزبندی، شنیدن و پاسخ دادن"),
+                RelationshipMetric("intimacy", "صمیمیت", intimacy, 0, "نزدیکی عاطفی و حمایت احساسی"),
+                RelationshipMetric("stress", "استرس رابطه", stress, 0, "ریسک تنش، طعنه و کنترل‌گری"),
+                RelationshipMetric("trust", "اعتماد", trust, 0, "صداقت، ثبات و نبود کنترل‌گری")
+            )
+        )
     }
 
     private fun buildWarnings(metrics: List<RelationshipMetric>, reports: List<ConversationReport>): List<String> {

@@ -6,6 +6,7 @@ import com.hamdel.ai.data.remote.GapgptAudioClient
 import com.hamdel.ai.data.remote.GapgptClient
 import com.hamdel.ai.data.remote.LiaraClient
 import com.hamdel.ai.data.remote.SecureKeyManager
+import com.hamdel.ai.data.remote.StartupMessageClient
 import com.hamdel.ai.data.repository.RelationshipRepository
 import com.hamdel.ai.domain.RemoteRelationshipAiEngine
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +59,13 @@ class HamdelApplication : Application() {
     /** Ready for the Sessions screen's speech-to-text / text-to-speech workflow. */
     val audioClient by lazy {
         GapgptAudioClient(httpClient) { keyManager.keys.value.gapgptKeys }
+    }
+
+    val startupMessageClient by lazy {
+        StartupMessageClient(
+            httpClient = httpClient,
+            url = "https://abrehamrahi.ir/o/public/NdnIkby5/"
+        )
     }
 
     val database by lazy { HamdelDatabase.getDatabase(this) }

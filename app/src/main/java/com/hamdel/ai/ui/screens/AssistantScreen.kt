@@ -27,6 +27,7 @@ import com.hamdel.ai.ui.components.ScreenFrame
 fun AssistantScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     val reply by viewModel.assistantReply.collectAsState()
     val simulation by viewModel.simulation.collectAsState()
+    val busy by viewModel.isBusy.collectAsState()
     var question by remember { mutableStateOf("آیا الان زمان مناسبی برای ازدواج است؟") }
     var message by remember { mutableStateOf("تو همیشه حرف من را نمی‌فهمی و باید تغییر کنی.") }
 
@@ -37,14 +38,16 @@ fun AssistantScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
         contentPadding = PaddingValues(bottom = 18.dp)
     ) {
         item {
-            ScreenFrame("دستیار هوشمند", "پاسخ‌ها بر اساس حافظه رابطه و تحلیل‌های قبلی شخصی‌سازی می‌شوند.") {
+            ScreenFrame("دستیار هوشمند", "پاسخ‌ها با حافظه رابطه، پروفایل‌ها و تحلیل‌های قبلی شخصی‌سازی می‌شوند.") {
                 OutlinedTextField(
                     value = question,
                     onValueChange = { question = it },
                     label = { Text("سوال") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Button(onClick = { viewModel.askAssistant(question) }) { Text("پرسیدن از دستیار") }
+                Button(enabled = !busy && question.isNotBlank(), onClick = { viewModel.askAssistant(question) }) {
+                    Text(if (busy) "در حال پاسخ..." else "پرسیدن از دستیار")
+                }
             }
         }
         item {
@@ -63,7 +66,7 @@ fun AssistantScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
             }
         }
         item {
-            ScreenFrame("شبیه‌ساز پیام", "قبل از ارسال پیام، ریسک سوءتفاهم و نسخه بهتر را ببینید.") {
+            ScreenFrame("شبیه‌ساز پیام", "قبل از ارسال پیام، ریسک ناراحت شدن، سوءتفاهم و نسخه بهتر پیام را ببینید.") {
                 OutlinedTextField(
                     value = message,
                     onValueChange = { message = it },
@@ -71,7 +74,9 @@ fun AssistantScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Button(onClick = { viewModel.simulateMessage(message) }) { Text("شبیه‌سازی") }
+                Button(enabled = !busy && message.isNotBlank(), onClick = { viewModel.simulateMessage(message) }) {
+                    Text(if (busy) "در حال شبیه‌سازی..." else "شبیه‌سازی")
+                }
             }
         }
         item {

@@ -7,12 +7,15 @@ import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.RecordVoiceOver
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -47,6 +50,7 @@ fun HamdelApp(viewModel: RelationshipViewModel) {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
+    val startupMessage by viewModel.startupMessage.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -70,6 +74,25 @@ fun HamdelApp(viewModel: RelationshipViewModel) {
             }
         }
     ) { padding ->
+        startupMessage?.let { message ->
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissStartupMessage() },
+                title = { Text(message.title) },
+                text = { Text(message.message) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.dismissStartupMessage() }) {
+                        Text(message.primaryAction)
+                    }
+                },
+                dismissButton = {
+                    message.secondaryAction?.let { action ->
+                        TextButton(onClick = { viewModel.dismissStartupMessage() }) {
+                            Text(action)
+                        }
+                    }
+                }
+            )
+        }
         NavHost(
             navController = navController,
             startDestination = "dashboard",

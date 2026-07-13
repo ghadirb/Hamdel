@@ -39,16 +39,13 @@ fun DashboardScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                 subtitle = "خلاصه وضعیت رابطه، هشدارها و پیشنهادهای امروز"
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    AssistChip(onClick = {}, label = { Text("رضایت دوطرفه فعال") })
-                    AssistChip(onClick = {}, label = { Text("حافظه رابطه روشن") })
+                    AssistChip(onClick = {}, label = { Text("رضایت دوطرفه") })
+                    AssistChip(onClick = {}, label = { Text("حافظه رابطه") })
                 }
             }
         }
         items(state.metrics) { metric ->
-            MetricCard(
-                metric = metric,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp)
-            )
+            MetricCard(metric = metric, modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp))
         }
         item {
             Card(
@@ -60,8 +57,8 @@ fun DashboardScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("روند هفتگی", fontWeight = FontWeight.SemiBold)
-                    MiniTrend(listOf(58, 62, 66, 63, 71, 76, 82))
+                    Text("روند رابطه", fontWeight = FontWeight.SemiBold)
+                    MiniTrend(state.metrics.map { it.value }.ifEmpty { listOf(58, 62, 66, 63, 71, 76, 82) })
                 }
             }
         }

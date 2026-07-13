@@ -1,27 +1,87 @@
 package com.hamdel.ai.ui.screens
 
+import android.Manifest
+import android.media.MediaRecorder
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.hamdel.ai.ui.RelationshipViewModel
 import com.hamdel.ai.ui.components.ScreenFrame
+import java.io.File
 
 @Composable
 fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
+    val context = LocalContext.current
+    val status by viewModel.statusMessage.collectAsState()
+    val transcript by viewModel.transcribedText.collectAsState()
+    val busy by viewModel.isBusy.collectAsState()
+    var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
+    var recordedFile by remember { mutableStateOf<File?>(null) }
+    var isRecording by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            val file = File(context.cacheDir, "hamdel-session-${System.currentTimeMillis()}.m4a")
+            recorder = MediaRecorder().apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(file.absolutePath)
+                prepare()
+                start()
+            }
+            recordedFile = file
+            isRecording = true
+        }
+    }
+
+    val audioFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            val file = File(context.cacheDir, "hamdel-import-${System.currentTimeMillis()}.m4a")
+            context.contentResolver.openInputStream(it)?.use { input ->
+                file.outputStream().use { output -> input.copyTo(output) }
+            }
+            recordedFile = file
+            viewModel.transcribeAndAnalyze("فایل صوتی جلسه", file)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            recorder?.runCatching {
+                stop()
+                release()
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -29,17 +89,36 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
         contentPadding = PaddingValues(bottom = 18.dp)
     ) {
         item {
-            ScreenFrame("جلسات گفتگو", "مسیر ضبط، تبدیل گفتار به متن، تفکیک گوینده و خلاصه جلسه برای نسخه تولیدی آماده شده است.") {
-                androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = {}) {
+            ScreenFrame("جلسات گفتگو", "جلسه را ضبط کنید یا فایل صوتی بدهید؛ صدا با Whisper در GapGPT به متن تبدیل و سپس تحلیل رابطه ذخیره می‌شود.") {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        enabled = !busy && !isRecording,
+                        onClick = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
+                    ) {
                         Icon(Icons.Outlined.Mic, contentDescription = null)
                         Text("شروع ضبط")
                     }
-                    Button(onClick = {}) {
+                    Button(
+                        enabled = isRecording,
+                        onClick = {
+                            recorder?.runCatching {
+                                stop()
+                                release()
+                            }
+                            recorder = null
+                            isRecording = false
+                            recordedFile?.let { viewModel.transcribeAndAnalyze("جلسه ضبط‌شده", it) }
+                        }
+                    ) {
                         Icon(Icons.Outlined.Stop, contentDescription = null)
-                        Text("پایان")
+                        Text("پایان و تحلیل")
                     }
                 }
+                OutlinedButton(enabled = !busy && !isRecording, onClick = { audioFileLauncher.launch("audio/*") }) {
+                    Icon(Icons.Outlined.AudioFile, contentDescription = null)
+                    Text("انتخاب فایل صوتی")
+                }
+                status?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
         item {
@@ -48,11 +127,8 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("نمونه خلاصه جلسه", fontWeight = FontWeight.SemiBold)
-                    Text("زمان صحبت نفر اول: ۵۴٪")
-                    Text("زمان صحبت نفر دوم: ۴۶٪")
-                    Text("موضوع اختلاف: زمان‌بندی دیدارها و نحوه بیان ناراحتی")
-                    Text("لحن کلی: آرام با چند نقطه تنش کوتاه", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("رونویسی آخرین جلسه", fontWeight = FontWeight.SemiBold)
+                    Text(transcript ?: "هنوز جلسه‌ای رونویسی نشده است.")
                 }
             }
         }

@@ -5,15 +5,22 @@ import androidx.lifecycle.viewModelScope
 import com.hamdel.ai.data.model.AiReply
 import com.hamdel.ai.data.model.DashboardState
 import com.hamdel.ai.data.model.MessageSimulation
+import com.hamdel.ai.data.model.PersonProfile
+import com.hamdel.ai.data.model.StartupMessage
+import com.hamdel.ai.data.remote.GapgptAudioClient
+import com.hamdel.ai.data.remote.StartupMessageClient
 import com.hamdel.ai.data.repository.RelationshipRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 
 class RelationshipViewModel(
-    private val repository: RelationshipRepository
+    private val repository: RelationshipRepository,
+    private val audioClient: GapgptAudioClient,
+    private val startupMessageClient: StartupMessageClient
 ) : ViewModel() {
     val dashboard: StateFlow<DashboardState> = repository.dashboard.stateIn(
         scope = viewModelScope,
@@ -23,28 +30,82 @@ class RelationshipViewModel(
 
     val assistantReply = MutableStateFlow<AiReply?>(null)
     val simulation = MutableStateFlow<MessageSimulation?>(null)
+    val statusMessage = MutableStateFlow<String?>(null)
+    val transcribedText = MutableStateFlow<String?>(null)
+    val isBusy = MutableStateFlow(false)
+    val startupMessage = MutableStateFlow<StartupMessage?>(null)
 
     init {
         viewModelScope.launch {
             repository.seedIfNeeded()
         }
+        viewModelScope.launch {
+            startupMessage.value = startupMessageClient.fetch()
+        }
+    }
+
+    fun dismissStartupMessage() {
+        startupMessage.value = null
     }
 
     fun analyzeConversation(title: String, text: String) {
         viewModelScope.launch {
-            repository.analyzeConversation(title, text)
+            if (!hasMutualConsent()) {
+                statusMessage.value = "برای تحلیل رابطه، رضایت هر دو نفر باید فعال باشد."
+                return@launch
+            }
+            isBusy.value = true
+            runCatching { repository.analyzeConversation(title, text) }
+                .onSuccess { statusMessage.value = "تحلیل ذخیره شد و داشبورد به‌روزرسانی شد." }
+                .onFailure { statusMessage.value = "تحلیل انجام نشد: ${it.message ?: "خطای نامشخص"}" }
+            isBusy.value = false
+        }
+    }
+
+    fun transcribeAndAnalyze(title: String, audioFile: File) {
+        viewModelScope.launch {
+            if (!hasMutualConsent()) {
+                statusMessage.value = "برای تحلیل جلسه، رضایت هر دو نفر باید فعال باشد."
+                return@launch
+            }
+            isBusy.value = true
+            val text = runCatching { audioClient.transcribe(audioFile) }.getOrNull()
+            if (text.isNullOrBlank()) {
+                statusMessage.value = "رونویسی صدا انجام نشد. اتصال یا کلید GapGPT را بررسی کنید."
+            } else {
+                transcribedText.value = text
+                repository.analyzeConversation(title, text)
+                statusMessage.value = "صدا رونویسی، تحلیل و در حافظه رابطه ثبت شد."
+            }
+            isBusy.value = false
+        }
+    }
+
+    fun saveProfile(profile: PersonProfile) {
+        viewModelScope.launch {
+            repository.saveProfile(profile)
+            statusMessage.value = "پروفایل ذخیره شد."
         }
     }
 
     fun askAssistant(question: String) {
         viewModelScope.launch {
+            isBusy.value = true
             assistantReply.value = repository.askAssistant(question, dashboard.value)
+            isBusy.value = false
         }
     }
 
     fun simulateMessage(message: String) {
         viewModelScope.launch {
+            isBusy.value = true
             simulation.value = repository.simulateMessage(message)
+            isBusy.value = false
         }
+    }
+
+    private fun hasMutualConsent(): Boolean {
+        val profiles = dashboard.value.profiles
+        return profiles.size >= 2 && profiles.all { it.consentGranted }
     }
 }

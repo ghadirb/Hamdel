@@ -12,15 +12,13 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * Speech-to-text / text-to-speech via gapgpt (مستندات gapgpt_sttوtts.txt).
- * Not wired into any screen yet – ready for the Sessions call-analysis feature described
- * in the README to consume once recording UI is built.
+ * Speech-to-text / text-to-speech via GapGPT.
+ * The Sessions screen uses this for recorded or imported audio files.
  */
 class GapgptAudioClient(
     private val httpClient: OkHttpClient,
     private val keysProvider: () -> List<String>
 ) {
-    /** Transcribes an audio file to text using whisper-1, with gapgpt/whisper-1 as a fallback model id. */
     suspend fun transcribe(audioFile: File): String? = withContext(Dispatchers.IO) {
         for (key in keysProvider()) {
             for (model in listOf("whisper-1", "gapgpt/whisper-1")) {
@@ -38,7 +36,7 @@ class GapgptAudioClient(
             .addFormDataPart(
                 "file",
                 audioFile.name,
-                audioFile.asRequestBody("audio/mpeg".toMediaType())
+                audioFile.asRequestBody("audio/mp4".toMediaType())
             )
             .build()
 
@@ -55,7 +53,6 @@ class GapgptAudioClient(
         }
     }
 
-    /** Synthesizes speech for [text] into [outputFile] using tts-1 (gpt-4o-mini-tts fallback). */
     suspend fun synthesize(text: String, outputFile: File, voice: String = "alloy"): Boolean =
         withContext(Dispatchers.IO) {
             for (key in keysProvider()) {

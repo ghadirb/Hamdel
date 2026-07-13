@@ -9,11 +9,6 @@ import com.hamdel.ai.data.remote.ChatCompletionClient
 import org.json.JSONObject
 import java.util.UUID
 
-/**
- * Real AI engine: tries gapgpt first, falls back to Liara, and finally falls back to the local
- * [DemoRelationshipAiEngine] if both remote providers are unreachable (no keys yet, offline, etc.)
- * so the app always stays usable.
- */
 class RemoteRelationshipAiEngine(
     private val gapgpt: ChatCompletionClient,
     private val liara: ChatCompletionClient,
@@ -22,10 +17,19 @@ class RemoteRelationshipAiEngine(
 
     override suspend fun analyzeConversation(title: String, text: String): ConversationReport {
         val system = """
-            تو یک تحلیلگر روابط عاطفی فارسی‌زبان هستی. فقط یک JSON معتبر با این فیلدها برگردان،
-            بدون هیچ متن اضافه یا Markdown:
-            {"summary": "string فارسی", "respect": 0-100, "empathy": 0-100, "honesty": 0-100,
-             "sarcasmRisk": 0-100, "controlRisk": 0-100, "emotionalSupport": 0-100}
+            تو یک تحلیلگر حرفه‌ای روابط عاطفی فارسی‌زبان هستی.
+            فقط یک JSON معتبر برگردان و هیچ متن اضافه یا Markdown ننویس.
+            ساختار دقیق:
+            {
+              "summary": "خلاصه فارسی کوتاه و کاربردی",
+              "respect": 0-100,
+              "empathy": 0-100,
+              "honesty": 0-100,
+              "sarcasmRisk": 0-100,
+              "controlRisk": 0-100,
+              "emotionalSupport": 0-100
+            }
+            تحلیل نباید حکم قطعی بدهد؛ فقط نشانه‌ها، ریسک‌ها و پیشنهادهای محتاطانه را گزارش کند.
         """.trimIndent()
         val user = "عنوان: ${title.ifBlank { "گفتگوی دستی" }}\nمتن گفتگو:\n$text"
 
@@ -51,12 +55,36 @@ class RemoteRelationshipAiEngine(
 
     override suspend fun askAssistant(question: String, context: DashboardState): AiReply {
         val system = """
-            تو دستیار هوشمند رابطه هستی. فقط یک JSON معتبر برگردان، بدون متن اضافه:
-            {"answer": "پاسخ فارسی و کاربردی", "confidence": 0.0-1.0, "reasons": ["...", "..."]}
-            یادآوری: برای تصمیم‌های بزرگ (مثل ازدواج)، این فقط یک راهنماست، نه جایگزین مشاور انسانی.
+            تو دستیار هوشمند رابطه و ازدواج هستی.
+            فقط یک JSON معتبر برگردان و هیچ متن اضافه یا Markdown ننویس.
+            ساختار دقیق:
+            {
+              "answer": "پاسخ فارسی، عملی، محترمانه و شخصی‌سازی‌شده",
+              "confidence": 0.0-1.0,
+              "reasons": ["دلیل اول", "دلیل دوم"]
+            }
+            برای تصمیم‌های مهم مثل ازدواج، جدایی یا بحران روانی حکم قطعی نده.
+            در صورت مشاهده خطر، فقط هشدار، دلیل و پیشنهاد مراجعه به متخصص انسانی بده.
         """.trimIndent()
         val metricsSummary = context.metrics.joinToString("، ") { "${it.title}: ${it.value}" }
-        val user = "سوال کاربر: $question\nوضعیت فعلی رابطه: $metricsSummary"
+        val reportsSummary = context.reports.take(3).joinToString("\n") {
+            "- ${it.sourceTitle}: احترام ${it.respect}، همدلی ${it.empathy}، کنترل‌گری ${it.controlRisk}"
+        }
+        val profilesSummary = context.profiles.joinToString("\n") {
+            "- ${it.name}: سبک ارتباط ${it.communicationStyle}، زبان عشق ${it.loveLanguage}، ارزش‌ها ${it.values}"
+        }
+        val user = """
+            سوال کاربر: $question
+
+            شاخص‌های فعلی رابطه:
+            $metricsSummary
+
+            پروفایل‌ها:
+            $profilesSummary
+
+            آخرین تحلیل‌ها:
+            $reportsSummary
+        """.trimIndent()
 
         val json = completeAsJson(system, user)
         if (json != null) {
@@ -75,9 +103,17 @@ class RemoteRelationshipAiEngine(
 
     override suspend fun simulateMessage(message: String): MessageSimulation {
         val system = """
-            تو شبیه‌ساز اثر پیام در رابطه هستی. فقط یک JSON معتبر برگردان، بدون متن اضافه:
-            {"conflictRisk": 0-100, "misunderstandingRisk": 0-100, "hurtRisk": 0-100,
-             "improvedMessage": "نسخه بهتر پیام به فارسی", "notes": ["...", "..."]}
+            تو شبیه‌ساز اثر پیام در رابطه هستی.
+            فقط یک JSON معتبر برگردان و هیچ متن اضافه یا Markdown ننویس.
+            ساختار دقیق:
+            {
+              "conflictRisk": 0-100,
+              "misunderstandingRisk": 0-100,
+              "hurtRisk": 0-100,
+              "improvedMessage": "نسخه بهتر پیام به فارسی",
+              "notes": ["نکته اول", "نکته دوم"]
+            }
+            هدف کاهش سوءتفاهم، سرزنش، طعنه و فشار روانی است.
         """.trimIndent()
 
         val json = completeAsJson(system, message)
@@ -97,11 +133,10 @@ class RemoteRelationshipAiEngine(
         return localFallback.simulateMessage(message)
     }
 
-    /** gapgpt first, Liara second, matching the required provider priority. */
     private suspend fun completeAsJson(system: String, user: String): JSONObject? {
         val raw = gapgpt.complete(system, user) ?: liara.complete(system, user)
         if (raw == null) {
-            Log.w(TAG, "Both gapgpt and Liara failed; using local demo engine.")
+            Log.w(TAG, "Both gapgpt and Liara failed; using local fallback.")
             return null
         }
         return extractJson(raw)

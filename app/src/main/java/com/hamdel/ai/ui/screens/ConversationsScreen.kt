@@ -1,8 +1,12 @@
 package com.hamdel.ai.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.hamdel.ai.data.model.ConversationReport
@@ -29,9 +35,22 @@ import com.hamdel.ai.ui.components.ScreenFrame
 
 @Composable
 fun ConversationsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
+    val context = LocalContext.current
     val state by viewModel.dashboard.collectAsState()
+    val status by viewModel.statusMessage.collectAsState()
+    val busy by viewModel.isBusy.collectAsState()
     var title by remember { mutableStateOf("Export چت") }
     var text by remember { mutableStateOf("") }
+
+    val textFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            text = context.contentResolver.openInputStream(uri)
+                ?.bufferedReader(Charsets.UTF_8)
+                ?.use { it.readText() }
+                .orEmpty()
+            title = uri.lastPathSegment?.substringAfterLast('/') ?: "فایل گفتگو"
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -40,7 +59,7 @@ fun ConversationsScreen(viewModel: RelationshipViewModel, padding: PaddingValues
         contentPadding = PaddingValues(bottom = 18.dp)
     ) {
         item {
-            ScreenFrame("تحلیل گفتگوها", "متن گفتگو را بچسبانید یا بعدا فایل/export چت را به همین جریان وصل کنید.") {
+            ScreenFrame("تحلیل گفتگوها", "متن گفتگو را بچسبانید یا فایل export چت را انتخاب کنید؛ تحلیل با GapGPT و در صورت خطا با Liara انجام می‌شود.") {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -51,12 +70,21 @@ fun ConversationsScreen(viewModel: RelationshipViewModel, padding: PaddingValues
                     value = text,
                     onValueChange = { text = it },
                     label = { Text("متن گفتگو") },
-                    minLines = 6,
+                    minLines = 7,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Button(onClick = { viewModel.analyzeConversation(title, text) }) {
-                    Text("تحلیل گفتگو")
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = { textFileLauncher.launch("text/*") }) {
+                        Text("انتخاب فایل")
+                    }
+                    Button(
+                        enabled = !busy && text.isNotBlank(),
+                        onClick = { viewModel.analyzeConversation(title, text) }
+                    ) {
+                        Text(if (busy) "در حال تحلیل..." else "تحلیل گفتگو")
+                    }
                 }
+                status?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
         items(state.reports) { report -> ConversationReportCard(report) }

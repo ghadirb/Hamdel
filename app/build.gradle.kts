@@ -30,13 +30,12 @@ android {
         }
 
         // Password used to decrypt the remote keys.txt (see encrypt_keys.py).
-        // Stored in a gitignored secrets.properties so it is never committed.
-        // Falls back to an empty string (e.g. in CI) so the public build still compiles;
-        // the app simply keeps using the local demo AI engine when no password is set.
+        // Defaults to the password used for the published encrypted bundle so public
+        // builds can use the online providers without committing raw API keys.
         buildConfigField(
             "String",
             "KEYS_DECRYPT_PASSWORD",
-            "\"${secretsProperties.getProperty("KEYS_DECRYPT_PASSWORD", "")}\""
+            "\"${secretsProperties.getProperty("KEYS_DECRYPT_PASSWORD", "12345")}\""
         )
     }
 

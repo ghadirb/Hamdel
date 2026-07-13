@@ -24,8 +24,14 @@ interface RelationshipDao {
     @Query("SELECT * FROM profiles")
     fun observeProfiles(): Flow<List<PersonProfile>>
 
+    @Query("SELECT COUNT(*) FROM relationship_metrics")
+    suspend fun metricCount(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMetrics(metrics: List<RelationshipMetric>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertProfile(profile: PersonProfile)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProfiles(profiles: List<PersonProfile>)
