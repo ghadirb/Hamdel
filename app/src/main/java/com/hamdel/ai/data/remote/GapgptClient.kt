@@ -29,7 +29,10 @@ class GapgptClient(
                     val result = runCatching { callModel(key, model, systemPrompt, userPrompt) }
                         .onFailure { Log.w(TAG, "gapgpt $model failed: ${it.message}") }
                         .getOrNull()
-                    if (result != null) return@withContext result
+                    if (result != null) {
+                        Log.i(TAG, "gapgpt $model completed")
+                        return@withContext result
+                    }
                 }
             }
             null
@@ -45,7 +48,7 @@ class GapgptClient(
         val body = JSONObject()
             .put("model", model)
             .put("messages", messages)
-            .put("max_tokens", 700)
+            .put("max_tokens", 260)
             .put("temperature", 0.3)
             .toString()
             .toRequestBody(JSON_MEDIA_TYPE)
@@ -76,6 +79,6 @@ class GapgptClient(
         private const val BASE_URL = "https://api.gapgpt.app/v1"
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
         private const val MAX_KEY_ATTEMPTS = 1
-        private val MODEL_PRIORITY = listOf("gpt-5-nano")
+        private val MODEL_PRIORITY = listOf("gpt-5-nano", "gpt-4o-mini")
     }
 }

@@ -11,6 +11,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * Speech-to-text / text-to-speech via GapGPT.
@@ -20,6 +21,12 @@ class GapgptAudioClient(
     private val httpClient: OkHttpClient,
     private val keysProvider: () -> List<String>
 ) {
+    private val audioHttpClient = httpClient.newBuilder()
+        .readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(120, TimeUnit.SECONDS)
+        .callTimeout(130, TimeUnit.SECONDS)
+        .build()
+
     suspend fun transcribe(audioFile: File): String? = withContext(Dispatchers.IO) {
         if (!audioFile.exists() || audioFile.length() == 0L) {
             Log.w(TAG, "No audio data available for transcription.")
@@ -30,7 +37,10 @@ class GapgptAudioClient(
                 val text = runCatching { transcribeWith(key, model, audioFile) }
                     .onFailure { Log.w(TAG, "transcription $model failed: ${it.javaClass.simpleName}") }
                     .getOrNull()
-                if (text != null) return@withContext text
+                if (text != null) {
+                    Log.i(TAG, "transcription $model completed")
+                    return@withContext text
+                }
             }
         }
         null
@@ -56,7 +66,7 @@ class GapgptAudioClient(
             .post(requestBody)
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        audioHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 Log.w(TAG, "transcription $model returned HTTP ${response.code}")
                 return null
