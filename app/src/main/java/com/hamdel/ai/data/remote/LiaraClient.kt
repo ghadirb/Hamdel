@@ -58,7 +58,10 @@ class LiaraClient(
             .build()
 
         httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
+            if (!response.isSuccessful) {
+                Log.w(TAG, "liara $model returned HTTP ${response.code}")
+                return null
+            }
             val text = response.body?.string() ?: return null
             val json = JSONObject(text)
             val choices = json.optJSONArray("choices") ?: return null

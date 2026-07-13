@@ -60,6 +60,7 @@ fun AssistantScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("پاسخ دستیار", fontWeight = FontWeight.SemiBold)
+                        Text("پاسخ آنلاین", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         Text(it.answer)
                         Text("اطمینان: ${(it.confidence * 100).toInt()}٪", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("دلایل: ${it.reasons.joinToString("، ")}", style = MaterialTheme.typography.bodySmall)
@@ -90,6 +91,7 @@ fun AssistantScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("نتیجه شبیه‌سازی", fontWeight = FontWeight.SemiBold)
+                        Text("تحلیل آنلاین", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         ScoreBar("احتمال دعوا", it.conflictRisk)
                         ScoreBar("احتمال سوءتفاهم", it.misunderstandingRisk)
                         ScoreBar("احتمال ناراحت شدن", it.hurtRisk)

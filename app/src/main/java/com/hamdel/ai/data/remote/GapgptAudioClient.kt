@@ -2,6 +2,7 @@ package com.hamdel.ai.data.remote
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.util.Log
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -20,9 +21,15 @@ class GapgptAudioClient(
     private val keysProvider: () -> List<String>
 ) {
     suspend fun transcribe(audioFile: File): String? = withContext(Dispatchers.IO) {
-        for (key in keysProvider()) {
-            for (model in listOf("whisper-1", "gapgpt/whisper-1")) {
-                val text = runCatching { transcribeWith(key, model, audioFile) }.getOrNull()
+        if (!audioFile.exists() || audioFile.length() == 0L) {
+            Log.w(TAG, "No audio data available for transcription.")
+            return@withContext null
+        }
+        for (key in keysProvider().take(MAX_KEY_ATTEMPTS)) {
+            for (model in TRANSCRIPTION_MODELS) {
+                val text = runCatching { transcribeWith(key, model, audioFile) }
+                    .onFailure { Log.w(TAG, "transcription $model failed: ${it.javaClass.simpleName}") }
+                    .getOrNull()
                 if (text != null) return@withContext text
             }
         }
@@ -47,7 +54,10 @@ class GapgptAudioClient(
             .build()
 
         httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
+            if (!response.isSuccessful) {
+                Log.w(TAG, "transcription $model returned HTTP ${response.code}")
+                return null
+            }
             val text = response.body?.string() ?: return null
             return JSONObject(text).optString("text").takeIf { it.isNotBlank() }
         }
@@ -88,6 +98,9 @@ class GapgptAudioClient(
     }
 
     companion object {
+        private const val TAG = "GapgptAudioClient"
         private const val BASE_URL = "https://api.gapgpt.app/v1"
+        private const val MAX_KEY_ATTEMPTS = 1
+        private val TRANSCRIPTION_MODELS = listOf("whisper-1")
     }
 }

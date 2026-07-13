@@ -3,6 +3,7 @@ package com.hamdel.ai.ui.screens
 import android.Manifest
 import android.media.MediaRecorder
 import android.net.Uri
+import android.webkit.MimeTypeMap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +43,8 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     val status by viewModel.statusMessage.collectAsState()
     val transcript by viewModel.transcribedText.collectAsState()
     val busy by viewModel.isBusy.collectAsState()
+    val dashboard by viewModel.dashboard.collectAsState()
+    val consentReady = dashboard.profiles.size >= 2 && dashboard.profiles.all { it.consentGranted }
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordedFile by remember { mutableStateOf<File?>(null) }
     var isRecording by remember { mutableStateOf(false) }
@@ -75,7 +78,11 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
 
     val audioFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
-            val file = File(context.cacheDir, "hamdel-import-${System.currentTimeMillis()}.m4a")
+            val extension = MimeTypeMap.getSingleton()
+                .getExtensionFromMimeType(context.contentResolver.getType(it))
+                ?.takeIf { value -> value.length <= 5 }
+                ?: "m4a"
+            val file = File(context.cacheDir, "hamdel-import-${System.currentTimeMillis()}.$extension")
             context.contentResolver.openInputStream(it)?.use { input ->
                 file.outputStream().use { output -> input.copyTo(output) }
             }
@@ -101,9 +108,12 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     ) {
         item {
             ScreenFrame("جلسات گفتگو", "جلسه را ضبط کنید یا فایل صوتی بدهید؛ پس از پایان، متن و تحلیل جلسه در حافظه رابطه ذخیره می‌شود.") {
+                if (!consentReady) {
+                    Text("برای ضبط و تحلیل جلسه، ابتدا دو پروفایل بسازید و رضایت تحلیل هر دو نفر را فعال کنید.", color = MaterialTheme.colorScheme.error)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(
-                        enabled = !busy && !isRecording,
+                        enabled = !busy && !isRecording && consentReady,
                         onClick = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
                     ) {
                         Icon(Icons.Outlined.Mic, contentDescription = null)
@@ -128,7 +138,7 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                 if (isRecording) {
                     Text("ضبط صدا در حال انجام است.", color = MaterialTheme.colorScheme.primary)
                 }
-                OutlinedButton(enabled = !busy && !isRecording, onClick = { audioFileLauncher.launch("audio/*") }) {
+                OutlinedButton(enabled = !busy && !isRecording && consentReady, onClick = { audioFileLauncher.launch("audio/*") }) {
                     Icon(Icons.Outlined.AudioFile, contentDescription = null)
                     Text("انتخاب فایل صوتی")
                 }

@@ -62,7 +62,7 @@ class RelationshipViewModel(
             }
             isBusy.value = true
             runCatching { repository.analyzeConversation(title, text) }
-                .onSuccess { statusMessage.value = "تحلیل ذخیره شد و داشبورد به‌روزرسانی شد." }
+                .onSuccess { statusMessage.value = "تحلیل آنلاین ذخیره شد و داشبورد به‌روزرسانی شد." }
                 .onFailure { statusMessage.value = "تحلیل انجام نشد: ${it.message ?: "خطای نامشخص"}" }
             isBusy.value = false
         }
@@ -81,7 +81,7 @@ class RelationshipViewModel(
             } else {
                 transcribedText.value = text
                 repository.analyzeConversation(title, text)
-                statusMessage.value = "صدا رونویسی، تحلیل و در حافظه رابطه ثبت شد."
+                statusMessage.value = "صدا با سرویس آنلاین رونویسی و تحلیل شد و در حافظه رابطه ثبت شد."
             }
             isBusy.value = false
         }

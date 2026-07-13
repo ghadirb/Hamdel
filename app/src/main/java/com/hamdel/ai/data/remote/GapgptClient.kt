@@ -56,7 +56,10 @@ class GapgptClient(
             .build()
 
         httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
+            if (!response.isSuccessful) {
+                Log.w(TAG, "gapgpt $model returned HTTP ${response.code}")
+                return null
+            }
             val text = response.body?.string() ?: return null
             val json = JSONObject(text)
             val choices = json.optJSONArray("choices") ?: return null
@@ -71,6 +74,6 @@ class GapgptClient(
         private const val BASE_URL = "https://api.gapgpt.app/v1"
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
         private const val MAX_KEY_ATTEMPTS = 1
-        private val MODEL_PRIORITY = listOf("gpt-4o-mini")
+        private val MODEL_PRIORITY = listOf("gpt-5-nano")
     }
 }
