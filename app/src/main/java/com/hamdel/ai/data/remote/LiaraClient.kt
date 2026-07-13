@@ -26,7 +26,7 @@ class LiaraClient(
         withContext(Dispatchers.IO) {
             val keys = keysProvider()
             val baseUrl = (baseUrlProvider() ?: DEFAULT_BASE_URL).trimEnd('/')
-            for (key in keys) {
+            for (key in keys.take(MAX_KEY_ATTEMPTS)) {
                 for (model in MODEL_PRIORITY) {
                     val result = runCatching { callModel(baseUrl, key, model, systemPrompt, userPrompt) }
                         .onFailure { Log.w(TAG, "liara $model failed: ${it.message}") }
@@ -74,6 +74,7 @@ class LiaraClient(
         // ships a LIARA_BASE_URL entry (e.g. after rotating to a different Liara project).
         private const val DEFAULT_BASE_URL = "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
-        private val MODEL_PRIORITY = listOf("openai/gpt-5-nano", "openai/gpt-4o-mini", "google/gemini-2.0-flash-001")
+        private const val MAX_KEY_ATTEMPTS = 1
+        private val MODEL_PRIORITY = listOf("google/gemini-2.0-flash-001")
     }
 }

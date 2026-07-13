@@ -49,16 +49,27 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
             val file = File(context.cacheDir, "hamdel-session-${System.currentTimeMillis()}.m4a")
-            recorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setOutputFile(file.absolutePath)
-                prepare()
-                start()
+            runCatching {
+                MediaRecorder().apply {
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                    setOutputFile(file.absolutePath)
+                    prepare()
+                    start()
+                }
+            }.onSuccess { activeRecorder ->
+                recorder = activeRecorder
+                recordedFile = file
+                isRecording = true
+                viewModel.setStatus("ضبط صدا آغاز شد.")
+            }.onFailure {
+                recorder?.release()
+                recorder = null
+                viewModel.setStatus("شروع ضبط ممکن نشد. مجوز میکروفن را بررسی کنید.")
             }
-            recordedFile = file
-            isRecording = true
+        } else {
+            viewModel.setStatus("برای ضبط جلسه، مجوز میکروفن لازم است.")
         }
     }
 
@@ -89,7 +100,7 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
         contentPadding = PaddingValues(bottom = 18.dp)
     ) {
         item {
-            ScreenFrame("جلسات گفتگو", "جلسه را ضبط کنید یا فایل صوتی بدهید؛ صدا با Whisper در GapGPT به متن تبدیل و سپس تحلیل رابطه ذخیره می‌شود.") {
+            ScreenFrame("جلسات گفتگو", "جلسه را ضبط کنید یا فایل صوتی بدهید؛ پس از پایان، متن و تحلیل جلسه در حافظه رابطه ذخیره می‌شود.") {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(
                         enabled = !busy && !isRecording,
@@ -113,6 +124,9 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                         Icon(Icons.Outlined.Stop, contentDescription = null)
                         Text("پایان و تحلیل")
                     }
+                }
+                if (isRecording) {
+                    Text("ضبط صدا در حال انجام است.", color = MaterialTheme.colorScheme.primary)
                 }
                 OutlinedButton(enabled = !busy && !isRecording, onClick = { audioFileLauncher.launch("audio/*") }) {
                     Icon(Icons.Outlined.AudioFile, contentDescription = null)

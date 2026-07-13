@@ -27,9 +27,10 @@ import com.hamdel.ai.ui.components.ScreenFrame
 fun AssistantScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     val reply by viewModel.assistantReply.collectAsState()
     val simulation by viewModel.simulation.collectAsState()
-    val busy by viewModel.isBusy.collectAsState()
-    var question by remember { mutableStateOf("آیا الان زمان مناسبی برای ازدواج است؟") }
-    var message by remember { mutableStateOf("تو همیشه حرف من را نمی‌فهمی و باید تغییر کنی.") }
+    val assistantBusy by viewModel.isAssistantBusy.collectAsState()
+    val simulationBusy by viewModel.isSimulationBusy.collectAsState()
+    var question by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
 
     LazyColumn(
         modifier = Modifier
@@ -43,10 +44,11 @@ fun AssistantScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     value = question,
                     onValueChange = { question = it },
                     label = { Text("سوال") },
+                    placeholder = { Text("مثال: چطور موضوع مهمی را آرام مطرح کنم؟") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Button(enabled = !busy && question.isNotBlank(), onClick = { viewModel.askAssistant(question) }) {
-                    Text(if (busy) "در حال پاسخ..." else "پرسیدن از دستیار")
+                Button(enabled = !assistantBusy && question.isNotBlank(), onClick = { viewModel.askAssistant(question) }) {
+                    Text(if (assistantBusy) "در حال پاسخ..." else "پرسیدن از دستیار")
                 }
             }
         }
@@ -71,11 +73,12 @@ fun AssistantScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     value = message,
                     onValueChange = { message = it },
                     label = { Text("متن پیام") },
+                    placeholder = { Text("پیامی را که می‌خواهید پیش از ارسال بررسی کنید بنویسید.") },
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Button(enabled = !busy && message.isNotBlank(), onClick = { viewModel.simulateMessage(message) }) {
-                    Text(if (busy) "در حال شبیه‌سازی..." else "شبیه‌سازی")
+                Button(enabled = !simulationBusy && message.isNotBlank(), onClick = { viewModel.simulateMessage(message) }) {
+                    Text(if (simulationBusy) "در حال شبیه‌سازی..." else "شبیه‌سازی پیام")
                 }
             }
         }

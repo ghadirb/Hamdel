@@ -33,11 +33,13 @@ class RelationshipViewModel(
     val statusMessage = MutableStateFlow<String?>(null)
     val transcribedText = MutableStateFlow<String?>(null)
     val isBusy = MutableStateFlow(false)
+    val isAssistantBusy = MutableStateFlow(false)
+    val isSimulationBusy = MutableStateFlow(false)
     val startupMessage = MutableStateFlow<StartupMessage?>(null)
 
     init {
         viewModelScope.launch {
-            repository.seedIfNeeded()
+            repository.clearLegacyDemoData()
         }
         viewModelScope.launch {
             startupMessage.value = startupMessageClient.fetch()
@@ -46,6 +48,10 @@ class RelationshipViewModel(
 
     fun dismissStartupMessage() {
         startupMessage.value = null
+    }
+
+    fun setStatus(message: String?) {
+        statusMessage.value = message
     }
 
     fun analyzeConversation(title: String, text: String) {
@@ -71,7 +77,7 @@ class RelationshipViewModel(
             isBusy.value = true
             val text = runCatching { audioClient.transcribe(audioFile) }.getOrNull()
             if (text.isNullOrBlank()) {
-                statusMessage.value = "رونویسی صدا انجام نشد. اتصال یا کلید GapGPT را بررسی کنید."
+                statusMessage.value = "رونویسی صدا انجام نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید."
             } else {
                 transcribedText.value = text
                 repository.analyzeConversation(title, text)
@@ -90,17 +96,21 @@ class RelationshipViewModel(
 
     fun askAssistant(question: String) {
         viewModelScope.launch {
-            isBusy.value = true
-            assistantReply.value = repository.askAssistant(question, dashboard.value)
-            isBusy.value = false
+            isAssistantBusy.value = true
+            runCatching { repository.askAssistant(question, dashboard.value) }
+                .onSuccess { assistantReply.value = it }
+                .onFailure { statusMessage.value = "پاسخ دستیار دریافت نشد. اتصال اینترنت را بررسی کنید." }
+            isAssistantBusy.value = false
         }
     }
 
     fun simulateMessage(message: String) {
         viewModelScope.launch {
-            isBusy.value = true
-            simulation.value = repository.simulateMessage(message)
-            isBusy.value = false
+            isSimulationBusy.value = true
+            runCatching { repository.simulateMessage(message) }
+                .onSuccess { simulation.value = it }
+                .onFailure { statusMessage.value = "شبیه‌سازی انجام نشد. اتصال اینترنت را بررسی کنید." }
+            isSimulationBusy.value = false
         }
     }
 

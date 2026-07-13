@@ -41,7 +41,11 @@ fun AnalysisScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text("روند اعتماد و امنیت", fontWeight = FontWeight.SemiBold)
-                    MiniTrend(state.metrics.map { it.value }.ifEmpty { listOf(62, 65, 64, 69, 72, 71, 76) })
+                    if (state.metrics.size >= 2) {
+                        MiniTrend(state.metrics.map { it.value })
+                    } else {
+                        Text("پس از ثبت حداقل دو تحلیل، روند اینجا نمایش داده می‌شود.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Text("این نمودار حکم قطعی نیست؛ فقط روند داده‌های ذخیره‌شده را نشان می‌دهد.", style = MaterialTheme.typography.bodySmall)
                 }
             }

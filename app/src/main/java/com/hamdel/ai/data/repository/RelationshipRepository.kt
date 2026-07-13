@@ -33,30 +33,16 @@ class RelationshipRepository(
         )
     }
 
-    suspend fun seedIfNeeded() {
-        if (dao.metricCount() > 0) return
-        dao.upsertMetrics(
-            listOf(
-                RelationshipMetric("compatibility", "سازگاری", 82, 6, "هم‌راستایی اهداف، ارزش‌ها و سبک ارتباطی"),
-                RelationshipMetric("respect", "احترام متقابل", 76, 4, "کیفیت مرزبندی، شنیدن و پاسخ دادن"),
-                RelationshipMetric("intimacy", "صمیمیت", 68, 8, "نزدیکی عاطفی و امنیت در بیان احساسات"),
-                RelationshipMetric("stress", "استرس رابطه", 34, -5, "فشار، سوءتفاهم و تنش‌های حل‌نشده"),
-                RelationshipMetric("trust", "اعتماد", 72, 3, "ثبات، صداقت و قابل اتکا بودن")
-            )
-        )
-        dao.upsertProfiles(
-            listOf(
-                PersonProfile("person_a", "نفر اول", 29, "کارشناسی ارشد", "طراح محصول", "تهران", "رشد مشترک و آرامش", "کتاب، سفر، موسیقی", "صداقت، احترام، خانواده", "گفتگوی مستقیم", "آرام و تحلیلی", "کلام تاییدآمیز", "INFJ", "همدل، دقیق، گاهی حساس", "پیاده‌روی و یادداشت روزانه", true),
-                PersonProfile("person_b", "نفر دوم", 31, "کارشناسی", "مهندس نرم‌افزار", "تهران", "ثبات مالی و خانواده", "ورزش، فیلم، تکنولوژی", "اعتماد، استقلال، مسئولیت", "حل مسئله", "منطقی و کوتاه", "وقت باکیفیت", "INTJ", "مسئول، مستقل، گاهی کم‌حرف", "ورزش صبحگاهی", true)
-            )
-        )
-        dao.upsertEvents(
-            listOf(
-                RelationshipEvent("first_meet", "اولین آشنایی", "شروع رابطه و شناخت اولیه", "memory", System.currentTimeMillis() - 60L * 24 * 60 * 60 * 1000),
-                RelationshipEvent("important_talk", "گفتگوی مهم", "صحبت درباره اهداف مشترک و مرزها", "session", System.currentTimeMillis() - 6L * 24 * 60 * 60 * 1000),
-                RelationshipEvent("repair", "آشتی پس از اختلاف", "تمرین شنیدن فعال و عذرخواهی مشخص", "repair", System.currentTimeMillis() - 2L * 24 * 60 * 60 * 1000)
-            )
-        )
+    /** Removes only the known records created by versions that shipped demo content. */
+    suspend fun clearLegacyDemoData() {
+        val isOnlyLegacyDemo = dao.profileCount() == 2 &&
+            dao.legacyProfileCount() == 2 &&
+            dao.reportCount() == 0
+        if (isOnlyLegacyDemo) {
+            dao.clearMetrics()
+            dao.clearLegacyProfiles()
+            dao.clearLegacyEvents()
+        }
     }
 
     suspend fun analyzeConversation(title: String, text: String): ConversationReport {
@@ -116,12 +102,11 @@ class RelationshipRepository(
         reports.firstOrNull { it.sarcasmRisk > 55 }?.let {
             warnings += "طعنه می‌تواند احساس امنیت را کم کند."
         }
-        return warnings.ifEmpty {
-            listOf("هشدار جدی ثبت نشده؛ روند را با رضایت دوطرفه ادامه دهید.")
-        }
+        return warnings
     }
 
     private fun dailySuggestions(metrics: List<RelationshipMetric>): List<String> {
+        if (metrics.isEmpty()) return emptyList()
         val stress = metrics.firstOrNull { it.id == "stress" }?.value ?: 0
         return if (stress > 50) {
             listOf("۱۰ دقیقه گفتگوی بدون قطع کردن تمرین کنید.", "یک موضوع حساس را به زمان آرام‌تری موکول کنید.", "هر نفر یک نیاز مشخص و قابل انجام بیان کند.")

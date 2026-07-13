@@ -24,7 +24,7 @@ class GapgptClient(
     override suspend fun complete(systemPrompt: String, userPrompt: String): String? =
         withContext(Dispatchers.IO) {
             val keys = keysProvider()
-            for (key in keys) {
+            for (key in keys.take(MAX_KEY_ATTEMPTS)) {
                 for (model in MODEL_PRIORITY) {
                     val result = runCatching { callModel(key, model, systemPrompt, userPrompt) }
                         .onFailure { Log.w(TAG, "gapgpt $model failed: ${it.message}") }
@@ -70,6 +70,7 @@ class GapgptClient(
         private const val TAG = "GapgptClient"
         private const val BASE_URL = "https://api.gapgpt.app/v1"
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
-        private val MODEL_PRIORITY = listOf("gpt-5-nano", "gpt-4o-mini")
+        private const val MAX_KEY_ATTEMPTS = 1
+        private val MODEL_PRIORITY = listOf("gpt-4o-mini")
     }
 }

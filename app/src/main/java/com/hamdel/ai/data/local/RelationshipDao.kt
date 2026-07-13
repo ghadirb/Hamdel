@@ -27,14 +27,29 @@ interface RelationshipDao {
     @Query("SELECT COUNT(*) FROM relationship_metrics")
     suspend fun metricCount(): Int
 
+    @Query("SELECT COUNT(*) FROM profiles")
+    suspend fun profileCount(): Int
+
+    @Query("SELECT COUNT(*) FROM profiles WHERE id IN ('person_a', 'person_b')")
+    suspend fun legacyProfileCount(): Int
+
+    @Query("SELECT COUNT(*) FROM conversation_reports")
+    suspend fun reportCount(): Int
+
+    @Query("DELETE FROM relationship_metrics")
+    suspend fun clearMetrics()
+
+    @Query("DELETE FROM profiles WHERE id IN ('person_a', 'person_b')")
+    suspend fun clearLegacyProfiles()
+
+    @Query("DELETE FROM relationship_events WHERE id IN ('first_meet', 'important_talk', 'repair')")
+    suspend fun clearLegacyEvents()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMetrics(metrics: List<RelationshipMetric>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProfile(profile: PersonProfile)
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertProfiles(profiles: List<PersonProfile>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertEvents(events: List<RelationshipEvent>)
