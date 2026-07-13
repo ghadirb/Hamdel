@@ -96,6 +96,10 @@ class RelationshipViewModel(
 
     fun askAssistant(question: String) {
         viewModelScope.launch {
+            if (!hasMutualConsent()) {
+                statusMessage.value = "برای استفاده دستیار از حافظه رابطه، رضایت هر دو نفر باید فعال باشد."
+                return@launch
+            }
             isAssistantBusy.value = true
             runCatching { repository.askAssistant(question, dashboard.value) }
                 .onSuccess { assistantReply.value = it }

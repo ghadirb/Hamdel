@@ -31,7 +31,7 @@ class RemoteRelationshipAiEngine(
             }
             تحلیل نباید حکم قطعی بدهد؛ فقط نشانه‌ها، ریسک‌ها و پیشنهادهای محتاطانه را گزارش کند.
         """.trimIndent()
-        val user = "عنوان: ${title.ifBlank { "گفتگوی دستی" }}\nمتن گفتگو:\n$text"
+        val user = "عنوان: ${title.ifBlank { "گفتگوی دستی" }}\nمتن گفتگو:\n${text.take(MAX_CONVERSATION_CHARS)}"
 
         val json = completeAsJson(system, user)
         return ConversationReport(
@@ -44,7 +44,8 @@ class RemoteRelationshipAiEngine(
             sarcasmRisk = json.optInt("sarcasmRisk", 20).coerceIn(0, 100),
             controlRisk = json.optInt("controlRisk", 20).coerceIn(0, 100),
             emotionalSupport = json.optInt("emotionalSupport", 60).coerceIn(0, 100),
-            createdAt = System.currentTimeMillis()
+            createdAt = System.currentTimeMillis(),
+            transcript = text
         )
     }
 
@@ -62,11 +63,15 @@ class RemoteRelationshipAiEngine(
             در صورت مشاهده خطر، فقط هشدار، دلیل و پیشنهاد مراجعه به متخصص انسانی بده.
         """.trimIndent()
         val metricsSummary = context.metrics.joinToString("، ") { "${it.title}: ${it.value}" }
+            .ifBlank { "هنوز شاخصی ثبت نشده است." }
         val reportsSummary = context.reports.take(3).joinToString("\n") {
-            "- ${it.sourceTitle}: احترام ${it.respect}، همدلی ${it.empathy}، کنترل‌گری ${it.controlRisk}"
+            "- ${it.sourceTitle}: احترام ${it.respect}، همدلی ${it.empathy}، کنترل‌گری ${it.controlRisk}، خلاصه: ${it.summary.take(500)}\nبخش مرتبط متن: ${it.transcript.take(MEMORY_TRANSCRIPT_CHARS)}"
         }
         val profilesSummary = context.profiles.joinToString("\n") {
-            "- ${it.name}: سبک ارتباط ${it.communicationStyle}، زبان عشق ${it.loveLanguage}، ارزش‌ها ${it.values}"
+            "- ${it.name}: سبک ارتباط ${it.communicationStyle.take(200)}، زبان عشق ${it.loveLanguage.take(200)}، ارزش‌ها ${it.values.take(300)}"
+        }
+        val eventsSummary = context.events.take(10).joinToString("\n") {
+            "- ${it.title.take(120)}: ${it.description.take(300)}"
         }
         val user = """
             سوال کاربر: $question
@@ -79,6 +84,9 @@ class RemoteRelationshipAiEngine(
 
             آخرین تحلیل‌ها:
             $reportsSummary
+
+            رویدادهای حافظه رابطه:
+            $eventsSummary
         """.trimIndent()
 
         val json = completeAsJson(system, user)
@@ -136,5 +144,7 @@ class RemoteRelationshipAiEngine(
 
     companion object {
         private const val TAG = "RemoteRelationshipAi"
+        private const val MAX_CONVERSATION_CHARS = 12_000
+        private const val MEMORY_TRANSCRIPT_CHARS = 900
     }
 }

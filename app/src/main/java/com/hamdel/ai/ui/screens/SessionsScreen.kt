@@ -48,8 +48,10 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordedFile by remember { mutableStateOf<File?>(null) }
     var isRecording by remember { mutableStateOf(false) }
+    var permissionPending by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        permissionPending = false
         if (granted) {
             val file = File(context.cacheDir, "hamdel-session-${System.currentTimeMillis()}.m4a")
             runCatching {
@@ -113,8 +115,11 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(
-                        enabled = !busy && !isRecording && consentReady,
-                        onClick = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
+                        enabled = !busy && !isRecording && consentReady && !permissionPending,
+                        onClick = {
+                            permissionPending = true
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
                     ) {
                         Icon(Icons.Outlined.Mic, contentDescription = null)
                         Text("شروع ضبط")
@@ -122,13 +127,17 @@ fun SessionsScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     Button(
                         enabled = isRecording,
                         onClick = {
-                            recorder?.runCatching {
+                            val didStop = recorder?.runCatching {
                                 stop()
                                 release()
-                            }
+                            }?.isSuccess == true
                             recorder = null
                             isRecording = false
-                            recordedFile?.let { viewModel.transcribeAndAnalyze("جلسه ضبط‌شده", it) }
+                            if (didStop) {
+                                recordedFile?.let { viewModel.transcribeAndAnalyze("جلسه ضبط‌شده", it) }
+                            } else {
+                                viewModel.setStatus("فایل صوتی معتبر ساخته نشد. ضبط را کمی طولانی‌تر انجام دهید و دوباره تلاش کنید.")
+                            }
                         }
                     ) {
                         Icon(Icons.Outlined.Stop, contentDescription = null)

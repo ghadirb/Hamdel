@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.hamdel.ai.data.model.ConversationReport
 import com.hamdel.ai.data.model.PersonProfile
 import com.hamdel.ai.data.model.RelationshipEvent
@@ -16,7 +18,7 @@ import com.hamdel.ai.data.model.RelationshipMetric
         RelationshipEvent::class,
         ConversationReport::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class HamdelDatabase : RoomDatabase() {
@@ -32,7 +34,13 @@ abstract class HamdelDatabase : RoomDatabase() {
                     context.applicationContext,
                     HamdelDatabase::class.java,
                     "hamdel.db"
-                ).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+            }
+        }
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE conversation_reports ADD COLUMN transcript TEXT NOT NULL DEFAULT ''")
             }
         }
     }

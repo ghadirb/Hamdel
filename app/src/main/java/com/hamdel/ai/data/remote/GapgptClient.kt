@@ -45,6 +45,8 @@ class GapgptClient(
         val body = JSONObject()
             .put("model", model)
             .put("messages", messages)
+            .put("max_tokens", 700)
+            .put("temperature", 0.3)
             .toString()
             .toRequestBody(JSON_MEDIA_TYPE)
 

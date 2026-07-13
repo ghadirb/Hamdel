@@ -40,6 +40,9 @@ class GapgptAudioClient(
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("model", model)
+            .addFormDataPart("language", "fa")
+            .addFormDataPart("prompt", "این یک گفتگوی فارسی است. متن را فقط به فارسی و با نگارش Unicode استاندارد بنویس.")
+            .addFormDataPart("response_format", "json")
             .addFormDataPart(
                 "file",
                 audioFile.name,

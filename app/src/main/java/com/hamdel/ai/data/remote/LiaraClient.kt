@@ -47,6 +47,8 @@ class LiaraClient(
         val body = JSONObject()
             .put("model", model)
             .put("messages", messages)
+            .put("max_tokens", 700)
+            .put("temperature", 0.3)
             .toString()
             .toRequestBody(JSON_MEDIA_TYPE)
 
@@ -78,6 +80,8 @@ class LiaraClient(
         private const val DEFAULT_BASE_URL = "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
         private const val MAX_KEY_ATTEMPTS = 1
-        private val MODEL_PRIORITY = listOf("google/gemini-2.0-flash-001")
+        // Verified against this project's live /models endpoint. The older Gemini 2.0 id
+        // documented in the original notes is no longer accepted by this Liara project.
+        private val MODEL_PRIORITY = listOf("openai/gpt-4o-mini")
     }
 }

@@ -52,7 +52,8 @@ data class ConversationReport(
     val sarcasmRisk: Int,
     val controlRisk: Int,
     val emotionalSupport: Int,
-    val createdAt: Long
+    val createdAt: Long,
+    val transcript: String = ""
 )
 
 data class DashboardState(

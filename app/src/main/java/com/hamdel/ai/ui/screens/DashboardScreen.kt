@@ -104,6 +104,20 @@ fun DashboardScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("حافظه رابطه", fontWeight = FontWeight.SemiBold)
+                        Text("با رضایت دوطرفه، پروفایل‌ها، تحلیل‌ها و رویدادهای ثبت‌شده برای شخصی‌سازی پاسخ دستیار استفاده می‌شوند.", style = MaterialTheme.typography.bodySmall)
+                        Text("پروفایل‌های متصل: ${state.profiles.size}", fontWeight = FontWeight.Medium)
+                        if (state.profiles.isEmpty()) {
+                            Text("هنوز پروفایلی ثبت نشده است.", style = MaterialTheme.typography.bodySmall)
+                        } else {
+                            state.profiles.forEach { profile ->
+                                Text(profile.name, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Text("تحلیل‌های ذخیره‌شده: ${state.reports.size}", fontWeight = FontWeight.Medium)
+                        state.reports.take(3).forEach { report ->
+                            Text(report.sourceTitle, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text("رویدادهای رابطه", fontWeight = FontWeight.Medium)
                         if (state.events.isEmpty()) {
                             Text("هنوز رویداد یا تحلیلی در حافظه رابطه ثبت نشده است.")
                         } else {
