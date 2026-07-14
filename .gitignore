@@ -10,5 +10,6 @@ captures/
 *.keystore
 *.jks
 secrets.properties
+billing.properties
 release-signing.properties
 keystore/

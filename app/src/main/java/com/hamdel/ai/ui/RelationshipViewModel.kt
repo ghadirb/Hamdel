@@ -10,6 +10,8 @@ import com.hamdel.ai.data.analysis.AutoAnalysisWorker
 import com.hamdel.ai.data.settings.HamdelPreferences
 import com.hamdel.ai.data.sms.ContactMessageSyncWorker
 import com.hamdel.ai.data.sms.ContactSmsImporter
+import com.hamdel.ai.data.billing.SubscriptionManager
+import com.hamdel.ai.data.billing.SubscriptionPlan
 import com.hamdel.ai.data.model.AiReply
 import com.hamdel.ai.data.model.DashboardState
 import com.hamdel.ai.data.model.MessageSimulation
@@ -32,7 +34,8 @@ class RelationshipViewModel(
     private val audioClient: GapgptAudioClient,
     private val startupMessageClient: StartupMessageClient,
     private val appContext: Context,
-    private val contactSmsImporter: ContactSmsImporter
+    private val contactSmsImporter: ContactSmsImporter,
+    private val subscriptionManager: SubscriptionManager
 ) : ViewModel() {
     private val preferences = HamdelPreferences(appContext)
     val dashboard: StateFlow<DashboardState> = repository.dashboard.stateIn(
@@ -53,6 +56,7 @@ class RelationshipViewModel(
     val autoAnalysisEnabled = MutableStateFlow(preferences.autoAnalysisEnabled)
     val messageSyncEnabled = MutableStateFlow(preferences.messageSyncEnabled)
     val monitoredContactName = MutableStateFlow(preferences.monitoredContactName)
+    val subscription = subscriptionManager.state
 
     init {
         viewModelScope.launch {
@@ -77,9 +81,10 @@ class RelationshipViewModel(
                 statusMessage.value = "برای تحلیل رابطه، رضایت هر دو نفر باید فعال باشد."
                 return@launch
             }
+            if (!requireAiAccess()) return@launch
             isBusy.value = true
             runCatching { repository.analyzeConversation(title, text) }
-                .onSuccess { statusMessage.value = "تحلیل آنلاین ذخیره شد و داشبورد به‌روزرسانی شد." }
+                .onSuccess { subscriptionManager.recordSuccessfulAiUse(); statusMessage.value = "تحلیل آنلاین ذخیره شد و داشبورد به‌روزرسانی شد." }
                 .onFailure { statusMessage.value = "تحلیل انجام نشد: ${it.message ?: "خطای نامشخص"}" }
             isBusy.value = false
         }
@@ -222,9 +227,10 @@ class RelationshipViewModel(
                 statusMessage.value = "برای استفاده دستیار از حافظه رابطه، رضایت هر دو نفر باید فعال باشد."
                 return@launch
             }
+            if (!requireAiAccess()) return@launch
             isAssistantBusy.value = true
             runCatching { repository.askAssistant(question, dashboard.value) }
-                .onSuccess { assistantReply.value = it }
+                .onSuccess { assistantReply.value = it; subscriptionManager.recordSuccessfulAiUse() }
                 .onFailure { statusMessage.value = "پاسخ دستیار دریافت نشد. اتصال اینترنت را بررسی کنید." }
             isAssistantBusy.value = false
         }
@@ -232,9 +238,10 @@ class RelationshipViewModel(
 
     fun simulateMessage(message: String) {
         viewModelScope.launch {
+            if (!requireAiAccess()) return@launch
             isSimulationBusy.value = true
             runCatching { repository.simulateMessage(message) }
-                .onSuccess { simulation.value = it }
+                .onSuccess { simulation.value = it; subscriptionManager.recordSuccessfulAiUse() }
                 .onFailure { statusMessage.value = "شبیه‌سازی انجام نشد. اتصال اینترنت را بررسی کنید." }
             isSimulationBusy.value = false
         }
@@ -243,5 +250,20 @@ class RelationshipViewModel(
     private fun hasMutualConsent(): Boolean {
         val profiles = dashboard.value.profiles
         return profiles.size >= 2 && profiles.all { it.consentGranted }
+    }
+
+    fun purchaseSubscription(plan: SubscriptionPlan) = subscriptionManager.purchase(plan)
+    fun restorePurchases() = subscriptionManager.restorePurchases()
+    fun disposeBilling() = subscriptionManager.dispose()
+
+    override fun onCleared() {
+        subscriptionManager.dispose()
+        super.onCleared()
+    }
+
+    private fun requireAiAccess(): Boolean {
+        if (subscriptionManager.canUseAi()) return true
+        statusMessage.value = "سهمیه رایگان شما تمام شده است. از بخش اشتراک، دسترسی ویژه را فعال کنید."
+        return false
     }
 }

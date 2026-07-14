@@ -33,7 +33,7 @@ jobs:
           gradle-version: 8.7
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug
+        run: gradle :app:assembleBazaarDebug :app:assembleMyketDebug
 
       - name: Configure release signing
         if: ${{ github.event_name == 'push' && env.HAS_RELEASE_SIGNING == 'true' }}
@@ -42,6 +42,8 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          BAZAAR_IAB_PUBLIC_KEY: ${{ secrets.BAZAAR_IAB_PUBLIC_KEY }}
+          MYKET_IAB_PUBLIC_KEY: ${{ secrets.MYKET_IAB_PUBLIC_KEY }}
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/hamdel-release.jks"
           cat > release-signing.properties <<EOF
@@ -50,16 +52,20 @@ jobs:
           RELEASE_KEY_ALIAS=$KEY_ALIAS
           RELEASE_KEY_PASSWORD=$KEY_PASSWORD
           EOF
+          cat > billing.properties <<EOF
+          BAZAAR_IAB_PUBLIC_KEY=$BAZAAR_IAB_PUBLIC_KEY
+          MYKET_IAB_PUBLIC_KEY=$MYKET_IAB_PUBLIC_KEY
+          EOF
 
       - name: Build signed release APK
         if: ${{ github.event_name == 'push' && env.HAS_RELEASE_SIGNING == 'true' }}
-        run: gradle :app:assembleRelease
+        run: gradle :app:assembleBazaarRelease :app:assembleMyketRelease
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
           name: hamdel-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/*/debug/*.apk
           if-no-files-found: error
 
       - name: Upload signed release APK
@@ -67,5 +73,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: hamdel-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error

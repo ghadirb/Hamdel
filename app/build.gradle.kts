@@ -13,6 +13,12 @@ val secretsProperties = Properties().apply {
     }
 }
 
+val billingProperties = Properties().apply {
+    val billingFile = rootProject.file("billing.properties")
+    if (billingFile.exists()) billingFile.inputStream().use { load(it) }
+}
+fun quotedBuildConfig(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
 val releaseSigningProperties = Properties().apply {
     val signingFile = rootProject.file("release-signing.properties")
     if (signingFile.exists()) signingFile.inputStream().use { load(it) }
@@ -47,6 +53,26 @@ android {
             "KEYS_DECRYPT_PASSWORD",
             "\"${secretsProperties.getProperty("KEYS_DECRYPT_PASSWORD", "12345")}\""
         )
+    }
+
+    flavorDimensions += "store"
+    productFlavors {
+        create("bazaar") {
+            dimension = "store"
+            manifestPlaceholders["marketApplicationId"] = "com.farsitel.bazaar"
+            manifestPlaceholders["marketBindAddress"] = "ir.cafebazaar.pardakht.InAppBillingService.BIND"
+            manifestPlaceholders["marketPermission"] = "com.farsitel.bazaar.permission.PAY_THROUGH_BAZAAR"
+            buildConfigField("String", "STORE_ID", "\"bazaar\"")
+            buildConfigField("String", "IAB_PUBLIC_KEY", quotedBuildConfig(billingProperties.getProperty("BAZAAR_IAB_PUBLIC_KEY", "")))
+        }
+        create("myket") {
+            dimension = "store"
+            manifestPlaceholders["marketApplicationId"] = "ir.mservices.market"
+            manifestPlaceholders["marketBindAddress"] = "ir.mservices.market.InAppBillingService.BIND"
+            manifestPlaceholders["marketPermission"] = "ir.mservices.market.BILLING"
+            buildConfigField("String", "STORE_ID", "\"myket\"")
+            buildConfigField("String", "IAB_PUBLIC_KEY", quotedBuildConfig(billingProperties.getProperty("MYKET_IAB_PUBLIC_KEY", "")))
+        }
     }
 
     buildTypes {
@@ -123,6 +149,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.github.myketstore:myket-billing-client:1.19")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

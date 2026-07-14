@@ -9,6 +9,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.hamdel.ai.ui.HamdelApp
 import com.hamdel.ai.ui.RelationshipViewModel
 import com.hamdel.ai.ui.theme.HamdelTheme
+import com.hamdel.ai.data.billing.SubscriptionManager
+import com.hamdel.ai.data.settings.HamdelPreferences
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<RelationshipViewModel> {
@@ -21,7 +23,8 @@ class MainActivity : ComponentActivity() {
                     audioClient = app.audioClient,
                     startupMessageClient = app.startupMessageClient,
                     appContext = app.applicationContext,
-                    contactSmsImporter = app.contactSmsImporter
+                    contactSmsImporter = app.contactSmsImporter,
+                    subscriptionManager = SubscriptionManager(this@MainActivity, HamdelPreferences(app.applicationContext))
                 ) as T
             }
         }
@@ -35,4 +38,5 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
 }

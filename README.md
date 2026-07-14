@@ -1,52 +1,63 @@
-# Hamdel
+# همدل
 
-Hamdel is a modern Android relationship and marriage assistant built with Kotlin, Jetpack Compose, MVVM, Room, encrypted local key caching, and online AI provider fallback.
+همدل یک دستیار اندرویدی فارسی برای ثبت، تحلیل و بهبود ارتباط زوج‌هاست. برنامه با Kotlin، Jetpack Compose، Room و تحلیل آنلاین ساخته شده است و فقط با رضایت صریح هر دو نفر، داده‌های رابطه را تحلیل می‌کند.
 
-The app tries **GapGPT first** (`gpt-5-nano`, then `gpt-4o-mini`) and falls back to **Liara AI Gateway** (`openai/gpt-5-nano`, `openai/gpt-4o-mini`, `google/gemini-2.0-flash-001`) if GapGPT fails. If both providers are unavailable, the app keeps working through a local fallback engine.
+## قابلیت‌ها
 
-## Features
+- داشبورد، گفتگوها، جلسات صوتی، تحلیل، دستیار و پروفایل
+- حافظه رابطه، تحلیل پیام‌های واردشده و پیشنهادهای قابل تایید برای پروفایل
+- پشتیبان‌گیری محلی و انتخابی در Google Drive از انتخاب‌گر سیستم
+- سهمیه رایگان ۱۲ عملیات آنلاین برای هر نصب
+- دسترسی ویژه ماهانه و سالانه با پرداخت درون‌برنامه‌ای بازار و مایکت
 
-- Material 3 Compose UI with bottom navigation
-- Dashboard, Conversations, Sessions, Analysis, Assistant, and Profile tabs
-- Runtime encrypted key loading from the configured public key bundle URLs
-- GapGPT/Liara online analysis for conversations, assistant answers, and message simulation
-- Audio recording/import with GapGPT Whisper transcription and automatic session analysis
-- Editable user profiles with explicit consent toggles
-- Relationship memory timeline and dashboard metrics that update after real analyses
-- Startup information dialog loaded from `https://abrehamrahi.ir/o/public/NdnIkby5/`
-- GitHub Actions workflow for public debug APK builds
+## پرداخت درون‌برنامه‌ای
 
-## Build
+خروجی‌های مستقل ساخته می‌شوند:
 
-On GitHub, the included workflow builds the debug APK on every push or pull request.
+- `bazaar`: اشتراک تمدیدشونده واقعی با SKUهای `hamdel_premium_monthly` و `hamdel_premium_yearly`
+- `myket`: مایکت طبق مستنداتش اشتراک خودکار ندارد؛ همین SKUها باید به صورت «بسته زمانی مصرف‌شدنی» تعریف شوند و اعتبار زمانی فقط پس از تایید سرور فعال شود.
 
-Locally, install Android Studio or Gradle plus Android SDK 35 and JDK 17, then run:
+قیمت پیشنهادی:
 
-```bash
-gradle :app:assembleDebug
+- ماهانه: ۱۴۹٬۰۰۰ تومان
+- سالانه: ۱٬۲۹۰٬۰۰۰ تومان
+
+قیمت واقعی فقط از پنل فروشگاه خوانده و در صفحه پرداخت آن نمایش داده می‌شود.
+
+### آماده‌سازی پنل‌ها
+
+1. نام بسته را در هر دو پنل دقیقا `com.hamdel.ai` ثبت کنید.
+2. در بازار، دو محصول اشتراکی با SKUهای بالا بسازید.
+3. در مایکت، دو محصول مصرف‌شدنی با همان SKUها بسازید؛ مصرف محصول باید فقط بعد از تایید سرور و ثبت اعتبار زمانی انجام شود.
+4. کلید RSA عمومی هر فروشگاه را از پنل همان فروشگاه بردارید.
+5. فایل محلی `billing.properties` را از روی `billing.properties.example` ایجاد کنید و کلیدها را در آن بگذارید. این فایل در Git قرار نمی‌گیرد.
+
+```properties
+BAZAAR_IAB_PUBLIC_KEY=...
+MYKET_IAB_PUBLIC_KEY=...
 ```
 
-## AI Keys
+برای ساخت امن Release در GitHub، همین دو مقدار را به صورت Secrets با نام‌های `BAZAAR_IAB_PUBLIC_KEY` و `MYKET_IAB_PUBLIC_KEY` اضافه کنید. همچنین چهار Secret امضا لازم است: `ANDROID_KEYSTORE_BASE64`، `KEYSTORE_PASSWORD`، `KEY_ALIAS` و `KEY_PASSWORD`.
 
-No provider API key is committed or hardcoded. At startup the app downloads the encrypted key bundle from:
+### نکته امنیتی مهم
+
+کلید API بازار و `X-Access-Token` مایکت هرگز نباید در APK یا GitHub Secrets قابل دسترس کلاینت قرار بگیرند. برنامه باید `purchaseToken`، داده خرید و امضای آن را به endpoint سرور شما بفرستد؛ سرور، خرید بازار یا مایکت را با API رسمی اعتبارسنجی و سپس دسترسی زمانی را ثبت می‌کند. بدون این backend، پرداخت کلاینتی برای انتشار مالی نهایی امن نیست.
+
+## بیلد
+
+GitHub Actions در هر push دو APK دیباگ می‌سازد:
 
 ```text
-https://abrehamrahi.ir/o/public/eUFcsXOX
-https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/c93c06d1b2f38c65ee30f092c134a89998326d12/keys.txt
+app/build/outputs/apk/bazaar/debug/
+app/build/outputs/apk/myket/debug/
 ```
 
-The bundle is decrypted locally with the same AES-GCM/PBKDF2 method used by `encrypt_keys.py`. The public build defaults to the password used for the published encrypted bundle, so online providers can work without committing raw API keys. To rotate the password locally, copy `secrets.properties.example` to `secrets.properties` and set `KEYS_DECRYPT_PASSWORD`.
+برای Release امضاشده، Secrets امضا را وارد کنید؛ سپس همان workflow دو APK Release می‌سازد. آیکون آماده فروشگاه در [assets/hamdel-myket-icon.png](assets/hamdel-myket-icon.png) است.
 
-## Startup Message JSON
+## Google Drive
 
-Upload `startup_message.json` to this direct URL:
+فعلا اتصال خودکار `appDataFolder` عمدا پیاده‌سازی نشده است. برای مرحله بعد، Google Drive API، OAuth Consent Screen و Android OAuth Client با package `com.hamdel.ai` و SHA-1 امضای Release را آماده نگه دارید.
 
-```text
-https://abrehamrahi.ir/o/public/NdnIkby5/
-```
+## حریم خصوصی
 
-The app falls back to a built-in message if the URL is unavailable.
-
-## Privacy
-
-The app is designed around explicit mutual consent. It does not make final decisions for users and is not a replacement for a human counselor, psychologist, emergency service, or legal/medical advice. Production releases should add biometric unlock, encrypted backup, data export, and full data deletion before handling real sensitive data at scale.
+همدل جایگزین روان‌شناس، مشاور یا خدمات اورژانسی نیست. داده‌های ارتباطی فقط با رضایت دوطرفه باید وارد و تحلیل شوند.

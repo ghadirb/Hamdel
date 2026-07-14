@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.hamdel.ai.data.model.PersonProfile
+import com.hamdel.ai.data.billing.SubscriptionPlan
 import com.hamdel.ai.ui.RelationshipViewModel
 import com.hamdel.ai.ui.components.ScreenFrame
 import java.util.UUID
@@ -47,6 +48,7 @@ fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     val messageSync by viewModel.messageSyncEnabled.collectAsState()
     val savedContactName by viewModel.monitoredContactName.collectAsState()
     val busy by viewModel.isBusy.collectAsState()
+    val subscription by viewModel.subscription.collectAsState()
     var editing by remember { mutableStateOf<PersonProfile?>(null) }
     var showNewForm by remember { mutableStateOf(false) }
     var contactName by remember(savedContactName) { mutableStateOf(savedContactName) }
@@ -86,6 +88,29 @@ fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     Text("افزودن پروفایل")
                 }
                 status?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+        }
+        item {
+            Card(modifier = Modifier.padding(16.dp)) {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("اشتراک و سهمیه هوش مصنوعی", fontWeight = FontWeight.SemiBold)
+                    val planText = when (subscription.plan) {
+                        SubscriptionPlan.Monthly -> "دسترسی ویژه ماهانه فعال است"
+                        SubscriptionPlan.Yearly -> "دسترسی ویژه سالانه فعال است"
+                        SubscriptionPlan.Free -> "${subscription.freeCreditsRemaining} استفاده رایگان باقی مانده"
+                    }
+                    Text(planText)
+                    Text(subscription.status, style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(onClick = { viewModel.purchaseSubscription(SubscriptionPlan.Monthly) }) { Text("ماهانه - ۱۴۹ هزار تومان") }
+                        OutlinedButton(onClick = { viewModel.purchaseSubscription(SubscriptionPlan.Yearly) }) { Text("سالانه - ۱٬۲۹۰ هزار تومان") }
+                    }
+                    OutlinedButton(onClick = viewModel::restorePurchases) { Text("بازیابی خریدها") }
+                    Text("قیمت و شرایط نهایی در صفحه پرداخت فروشگاه نمایش داده می‌شود.", style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
         if (showNewForm || editing != null) {
