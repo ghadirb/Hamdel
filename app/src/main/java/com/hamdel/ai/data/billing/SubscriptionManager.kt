@@ -93,10 +93,10 @@ class SubscriptionManager(
 
     private fun refreshInventory() {
         val client = helper ?: return
-        val itemSkus = if (BuildConfig.STORE_ID == "myket") listOf(MONTHLY_SKU, YEARLY_SKU) else emptyList()
-        val subscriptionSkus = if (BuildConfig.STORE_ID == "bazaar") listOf(MONTHLY_SKU, YEARLY_SKU) else emptyList()
         runCatching {
-            client.queryInventoryAsync(true, itemSkus, subscriptionSkus, inventoryListener)
+            // Version 1.19 of the official multi-store client queries owned in-app and
+            // subscription products together; it accepts one optional SKU detail list.
+            client.queryInventoryAsync(true, listOf(MONTHLY_SKU, YEARLY_SKU), inventoryListener)
         }.onFailure { setStatus("بازیابی خریدها انجام نشد: ${it.message ?: "خطای نامشخص"}") }
     }
 
