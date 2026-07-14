@@ -8,6 +8,7 @@ import com.hamdel.ai.data.remote.LiaraClient
 import com.hamdel.ai.data.remote.SecureKeyManager
 import com.hamdel.ai.data.remote.StartupMessageClient
 import com.hamdel.ai.data.repository.RelationshipRepository
+import com.hamdel.ai.data.sms.ContactSmsImporter
 import com.hamdel.ai.domain.RemoteRelationshipAiEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +69,8 @@ class HamdelApplication : Application() {
             url = "https://abrehamrahi.ir/o/public/NdnIkby5/"
         )
     }
+
+    val contactSmsImporter by lazy { ContactSmsImporter(this) }
 
     val database by lazy { HamdelDatabase.getDatabase(this) }
 

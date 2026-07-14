@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.hamdel.ai.data.model.ConversationReport
+import com.hamdel.ai.data.model.ContactMessage
 import com.hamdel.ai.data.model.PersonProfile
 import com.hamdel.ai.data.model.RelationshipEvent
 import com.hamdel.ai.data.model.RelationshipMetric
@@ -23,6 +24,9 @@ interface RelationshipDao {
 
     @Query("SELECT * FROM profiles")
     fun observeProfiles(): Flow<List<PersonProfile>>
+
+    @Query("SELECT * FROM contact_messages ORDER BY timestamp DESC")
+    fun observeContactMessages(): Flow<List<ContactMessage>>
 
     @Query("SELECT COUNT(*) FROM relationship_metrics")
     suspend fun metricCount(): Int
@@ -56,4 +60,7 @@ interface RelationshipDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReport(report: ConversationReport)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertContactMessages(messages: List<ContactMessage>)
 }

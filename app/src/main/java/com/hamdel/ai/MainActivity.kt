@@ -16,7 +16,13 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return RelationshipViewModel(app.repository, app.audioClient, app.startupMessageClient) as T
+                return RelationshipViewModel(
+                    repository = app.repository,
+                    audioClient = app.audioClient,
+                    startupMessageClient = app.startupMessageClient,
+                    appContext = app.applicationContext,
+                    contactSmsImporter = app.contactSmsImporter
+                ) as T
             }
         }
     }

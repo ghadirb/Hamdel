@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.hamdel.ai.data.model.ConversationReport
+import com.hamdel.ai.data.model.ContactMessage
 import com.hamdel.ai.data.model.PersonProfile
 import com.hamdel.ai.data.model.RelationshipEvent
 import com.hamdel.ai.data.model.RelationshipMetric
@@ -16,9 +17,10 @@ import com.hamdel.ai.data.model.RelationshipMetric
         PersonProfile::class,
         RelationshipMetric::class,
         RelationshipEvent::class,
-        ConversationReport::class
+        ConversationReport::class,
+        ContactMessage::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class HamdelDatabase : RoomDatabase() {
@@ -34,13 +36,30 @@ abstract class HamdelDatabase : RoomDatabase() {
                     context.applicationContext,
                     HamdelDatabase::class.java,
                     "hamdel.db"
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
         }
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE conversation_reports ADD COLUMN transcript TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS contact_messages (" +
+                        "id TEXT NOT NULL PRIMARY KEY, contactName TEXT NOT NULL, address TEXT NOT NULL, " +
+                        "body TEXT NOT NULL, timestamp INTEGER NOT NULL, direction TEXT NOT NULL)"
+                )
+            }
+        }
+
+        fun closeDatabase() {
+            synchronized(this) {
+                instance?.close()
+                instance = null
             }
         }
     }

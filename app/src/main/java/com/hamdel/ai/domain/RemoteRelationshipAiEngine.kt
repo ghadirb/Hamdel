@@ -73,6 +73,9 @@ class RemoteRelationshipAiEngine(
         val eventsSummary = context.events.take(10).joinToString("\n") {
             "- ${it.title.take(120)}: ${it.description.take(300)}"
         }
+        val messagesSummary = context.contactMessages.take(20).reversed().joinToString("\n") {
+            "- ${it.direction}: ${it.body.take(700)}"
+        }.ifBlank { "پیامی از مخاطب انتخاب‌شده در حافظه ثبت نشده است." }
         val user = """
             سوال کاربر: $question
 
@@ -87,6 +90,9 @@ class RemoteRelationshipAiEngine(
 
             رویدادهای حافظه رابطه:
             $eventsSummary
+
+            پیام‌های ذخیره‌شده با رضایت کاربر:
+            $messagesSummary
         """.trimIndent()
 
         val json = completeAsJson(system, user)

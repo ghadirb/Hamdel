@@ -1,5 +1,9 @@
 package com.hamdel.ai.ui.screens
 
+import android.Manifest
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -24,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -34,10 +39,35 @@ import java.util.UUID
 
 @Composable
 fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
+    val context = LocalContext.current
     val state by viewModel.dashboard.collectAsState()
     val status by viewModel.statusMessage.collectAsState()
+    val autoBackup by viewModel.autoBackupEnabled.collectAsState()
+    val messageSync by viewModel.messageSyncEnabled.collectAsState()
+    val savedContactName by viewModel.monitoredContactName.collectAsState()
     var editing by remember { mutableStateOf<PersonProfile?>(null) }
     var showNewForm by remember { mutableStateOf(false) }
+    var contactName by remember(savedContactName) { mutableStateOf(savedContactName) }
+    val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+            viewModel.backupTo(it)
+        }
+    }
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { viewModel.restoreFrom(it) }
+    }
+    val smsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        val granted = result[Manifest.permission.READ_SMS] == true && result[Manifest.permission.READ_CONTACTS] == true
+        viewModel.configureContactMessageSync(contactName, granted)
+        if (granted) viewModel.importContactMessages()
+        else viewModel.setStatus("برای هم‌رسانی پیام‌ها، مجوز پیامک و مخاطبان لازم است.")
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -72,6 +102,56 @@ fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                 )
             }
         }
+        item {
+            Card(modifier = Modifier.padding(16.dp)) {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("پشتیبان‌گیری و هم‌رسانی", fontWeight = FontWeight.SemiBold)
+                    Text("برای انتخاب Google Drive یا حافظه گوشی، مقصد را از انتخاب‌گر سیستم تعیین کنید.", style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(onClick = { backupLauncher.launch("hamdel-backup.zip") }) { Text("تهیه پشتیبان") }
+                        OutlinedButton(onClick = { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("بازیابی") }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Switch(checked = autoBackup, onCheckedChange = viewModel::setAutoBackup)
+                        Text("پشتیبان‌گیری خودکار روزانه")
+                    }
+                }
+            }
+        }
+        item {
+            Card(modifier = Modifier.padding(16.dp)) {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("هم‌رسانی پیام‌های مخاطب", fontWeight = FontWeight.SemiBold)
+                    Text("فقط با رضایت صریح شما و رضایت فعال هر دو پروفایل، پیام‌های SMS مخاطبی که نام کاملش را وارد می‌کنید وارد حافظه رابطه می‌شود.", style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(
+                        value = contactName,
+                        onValueChange = { contactName = it },
+                        label = { Text("نام دقیق مخاطب") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Switch(
+                            checked = messageSync,
+                            onCheckedChange = { enabled ->
+                                if (enabled) smsPermissionLauncher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.READ_CONTACTS))
+                                else viewModel.configureContactMessageSync(contactName, false)
+                            }
+                        )
+                        Text("هم‌رسانی خودکار پیام‌ها")
+                    }
+                    OutlinedButton(
+                        enabled = messageSync && contactName.isNotBlank(),
+                        onClick = { viewModel.configureContactMessageSync(contactName, true); viewModel.importContactMessages() }
+                    ) { Text("خواندن و هم‌رسانی اکنون") }
+                }
+            }
+        }
         items(state.profiles) { profile ->
             ProfileCard(profile = profile, onEdit = {
                 editing = profile
@@ -88,6 +168,7 @@ fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     state.events.forEach { event ->
                         Text("${event.title}: ${event.description}", style = MaterialTheme.typography.bodyMedium)
                     }
+                    Text("پیام‌های ذخیره‌شده: ${state.contactMessages.size}", fontWeight = FontWeight.Medium)
                 }
             }
         }

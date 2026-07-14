@@ -3,6 +3,7 @@ package com.hamdel.ai.data.repository
 import com.hamdel.ai.data.local.RelationshipDao
 import com.hamdel.ai.data.model.AiReply
 import com.hamdel.ai.data.model.ConversationReport
+import com.hamdel.ai.data.model.ContactMessage
 import com.hamdel.ai.data.model.DashboardState
 import com.hamdel.ai.data.model.MessageSimulation
 import com.hamdel.ai.data.model.PersonProfile
@@ -17,7 +18,7 @@ class RelationshipRepository(
     private val dao: RelationshipDao,
     private val aiEngine: RelationshipAiEngine
 ) {
-    val dashboard: Flow<DashboardState> = combine(
+    private val baseDashboard: Flow<DashboardState> = combine(
         dao.observeMetrics(),
         dao.observeEvents(),
         dao.observeReports(),
@@ -31,6 +32,10 @@ class RelationshipRepository(
             warnings = buildWarnings(metrics, reports),
             suggestions = dailySuggestions(metrics)
         )
+    }
+
+    val dashboard: Flow<DashboardState> = combine(baseDashboard, dao.observeContactMessages()) { state, messages ->
+        state.copy(contactMessages = messages)
     }
 
     /** Removes only the known records created by versions that shipped demo content. */
@@ -65,6 +70,22 @@ class RelationshipRepository(
 
     suspend fun saveProfile(profile: PersonProfile) {
         dao.upsertProfile(profile)
+    }
+
+    suspend fun saveContactMessages(messages: List<ContactMessage>) {
+        if (messages.isEmpty()) return
+        dao.insertContactMessages(messages)
+        dao.upsertEvents(
+            listOf(
+                RelationshipEvent(
+                    id = UUID.randomUUID().toString(),
+                    title = "پیام‌های هم‌رسانی‌شده",
+                    description = "${messages.size} پیام با رضایت کاربر به حافظه رابطه افزوده شد.",
+                    category = "messages",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        )
     }
 
     suspend fun askAssistant(question: String, state: DashboardState): AiReply {

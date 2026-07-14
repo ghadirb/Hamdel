@@ -2,6 +2,13 @@ package com.hamdel.ai.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
+import android.net.Uri
+import com.hamdel.ai.data.backup.AutoBackupWorker
+import com.hamdel.ai.data.backup.BackupManager
+import com.hamdel.ai.data.settings.HamdelPreferences
+import com.hamdel.ai.data.sms.ContactMessageSyncWorker
+import com.hamdel.ai.data.sms.ContactSmsImporter
 import com.hamdel.ai.data.model.AiReply
 import com.hamdel.ai.data.model.DashboardState
 import com.hamdel.ai.data.model.MessageSimulation
@@ -14,14 +21,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class RelationshipViewModel(
     private val repository: RelationshipRepository,
     private val audioClient: GapgptAudioClient,
-    private val startupMessageClient: StartupMessageClient
+    private val startupMessageClient: StartupMessageClient,
+    private val appContext: Context,
+    private val contactSmsImporter: ContactSmsImporter
 ) : ViewModel() {
+    private val preferences = HamdelPreferences(appContext)
     val dashboard: StateFlow<DashboardState> = repository.dashboard.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -36,6 +48,9 @@ class RelationshipViewModel(
     val isAssistantBusy = MutableStateFlow(false)
     val isSimulationBusy = MutableStateFlow(false)
     val startupMessage = MutableStateFlow<StartupMessage?>(null)
+    val autoBackupEnabled = MutableStateFlow(preferences.autoBackupEnabled)
+    val messageSyncEnabled = MutableStateFlow(preferences.messageSyncEnabled)
+    val monitoredContactName = MutableStateFlow(preferences.monitoredContactName)
 
     init {
         viewModelScope.launch {
@@ -91,6 +106,64 @@ class RelationshipViewModel(
         viewModelScope.launch {
             repository.saveProfile(profile)
             statusMessage.value = "پروفایل ذخیره شد."
+        }
+    }
+
+    fun backupTo(uri: Uri) {
+        viewModelScope.launch {
+            isBusy.value = true
+            val success = runCatching { withContext(Dispatchers.IO) { BackupManager.backupToUri(appContext, uri) } }.getOrDefault(false)
+            if (success) {
+                preferences.backupUri = uri.toString()
+                statusMessage.value = "پشتیبان کامل ذخیره شد."
+            } else {
+                statusMessage.value = "تهیه پشتیبان ناموفق بود."
+            }
+            isBusy.value = false
+        }
+    }
+
+    fun restoreFrom(uri: Uri) {
+        viewModelScope.launch {
+            isBusy.value = true
+            val success = runCatching { withContext(Dispatchers.IO) { BackupManager.restoreFromUri(appContext, uri) } }.getOrDefault(false)
+            statusMessage.value = if (success) "بازیابی انجام شد؛ برنامه را یک‌بار ببندید و دوباره باز کنید." else "بازیابی ناموفق بود."
+            isBusy.value = false
+        }
+    }
+
+    fun setAutoBackup(enabled: Boolean) {
+        if (enabled && preferences.backupUri == null) {
+            statusMessage.value = "ابتدا یک پشتیبان دستی و مقصد ذخیره‌سازی انتخاب کنید."
+            return
+        }
+        preferences.autoBackupEnabled = enabled
+        autoBackupEnabled.value = enabled
+        if (enabled) AutoBackupWorker.schedule(appContext) else AutoBackupWorker.cancel(appContext)
+    }
+
+    fun configureContactMessageSync(exactName: String, enabled: Boolean) {
+        preferences.monitoredContactName = exactName
+        preferences.messageSyncEnabled = enabled && exactName.isNotBlank()
+        monitoredContactName.value = preferences.monitoredContactName
+        messageSyncEnabled.value = preferences.messageSyncEnabled
+        if (preferences.messageSyncEnabled) ContactMessageSyncWorker.schedule(appContext) else ContactMessageSyncWorker.cancel(appContext)
+    }
+
+    fun importContactMessages() {
+        viewModelScope.launch {
+            if (!hasMutualConsent()) {
+                statusMessage.value = "برای افزودن پیام‌ها به حافظه رابطه، رضایت هر دو نفر باید فعال باشد."
+                return@launch
+            }
+            isBusy.value = true
+            runCatching { withContext(Dispatchers.IO) { contactSmsImporter.importForConfiguredContact() } }
+                .onSuccess {
+                    repository.saveContactMessages(it)
+                    statusMessage.value = if (it.isEmpty()) "پیامی برای نام دقیق واردشده پیدا نشد." else "${it.size} پیام به حافظه رابطه افزوده شد."
+                }
+                .onFailure { statusMessage.value = "خواندن پیام‌ها ناموفق بود. مجوز پیامک و مخاطبان را بررسی کنید." }
+            isBusy.value = false
         }
     }
 

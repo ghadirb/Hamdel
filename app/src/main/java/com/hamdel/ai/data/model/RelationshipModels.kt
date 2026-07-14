@@ -56,13 +56,24 @@ data class ConversationReport(
     val transcript: String = ""
 )
 
+@Entity(tableName = "contact_messages")
+data class ContactMessage(
+    @PrimaryKey val id: String,
+    val contactName: String,
+    val address: String,
+    val body: String,
+    val timestamp: Long,
+    val direction: String
+)
+
 data class DashboardState(
     val metrics: List<RelationshipMetric> = emptyList(),
     val warnings: List<String> = emptyList(),
     val suggestions: List<String> = emptyList(),
     val events: List<RelationshipEvent> = emptyList(),
     val reports: List<ConversationReport> = emptyList(),
-    val profiles: List<PersonProfile> = emptyList()
+    val profiles: List<PersonProfile> = emptyList(),
+    val contactMessages: List<ContactMessage> = emptyList()
 )
 
 data class AiReply(
