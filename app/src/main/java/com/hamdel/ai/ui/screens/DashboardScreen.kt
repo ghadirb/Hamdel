@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -31,8 +32,11 @@ import com.hamdel.ai.ui.components.ScreenFrame
 @Composable
 fun DashboardScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     val state by viewModel.dashboard.collectAsState()
+    val busy by viewModel.isBusy.collectAsState()
+    val status by viewModel.statusMessage.collectAsState()
     var showConsentInfo by remember { mutableStateOf(false) }
     var showMemory by remember { mutableStateOf(false) }
+    val consentReady = state.profiles.size >= 2 && state.profiles.all { it.consentGranted }
     val consentText = when {
         state.profiles.size < 2 -> "برای فعال‌شدن تحلیل، دو پروفایل بسازید."
         state.profiles.all { it.consentGranted } -> "رضایت هر دو نفر فعال است."
@@ -57,6 +61,18 @@ fun DashboardScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     if (showConsentInfo) {
                         Text(consentText, style = MaterialTheme.typography.bodySmall)
                     }
+                    Button(
+                        enabled = !busy && consentReady && (state.contactMessages.isNotEmpty() || state.reports.isNotEmpty()),
+                        onClick = viewModel::refreshRelationshipAnalysis
+                    ) {
+                        Text(if (busy) "در حال به‌روزرسانی تحلیل..." else "به‌روزرسانی تحلیل")
+                    }
+                    Text(
+                        "این کار تازه‌ترین پیام‌ها، گفتگوها، جلسه‌ها، رویدادها و اطلاعات پروفایل را با رضایت دوطرفه در یک تحلیل آنلاین جمع‌بندی می‌کند.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         }

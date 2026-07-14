@@ -68,6 +68,31 @@ class RelationshipRepository(
         return report
     }
 
+    /** Creates one fresh online report from every consented source in the relationship memory. */
+    suspend fun analyzeRelationshipMemory(state: DashboardState): ConversationReport {
+        val memory = buildString {
+            appendLine("پروفایل‌های ثبت‌شده:")
+            state.profiles.forEach { profile ->
+                appendLine("- ${profile.name}: ارزش‌ها=${profile.values.take(400)}، سبک ارتباط=${profile.communicationStyle.take(300)}، زبان عشق=${profile.loveLanguage.take(200)}")
+            }
+            appendLine("پیام‌های ذخیره‌شده:")
+            state.contactMessages.take(30).reversed().forEach { message ->
+                appendLine("[${message.direction}] ${message.body.take(260)}")
+            }
+            appendLine("گفتگوها و جلسه‌های پیشین:")
+            state.reports.take(10).forEach { report ->
+                appendLine("- ${report.sourceTitle}: ${report.summary.take(800)}")
+                if (report.transcript.isNotBlank()) appendLine(report.transcript.take(700))
+            }
+            appendLine("رویدادهای رابطه:")
+            state.events.take(20).forEach { event -> appendLine("- ${event.title}: ${event.description.take(500)}") }
+        }
+        require(memory.length > "پروفایل‌های ثبت‌شده:\nپیام‌های ذخیره‌شده:\nگفتگوها و جلسه‌های پیشین:\nرویدادهای رابطه:\n".length) {
+            "هنوز داده‌ای برای تحلیل حافظه رابطه ثبت نشده است."
+        }
+        return analyzeConversation("به‌روزرسانی تحلیل حافظه رابطه", memory)
+    }
+
     suspend fun saveProfile(profile: PersonProfile) {
         dao.upsertProfile(profile)
     }

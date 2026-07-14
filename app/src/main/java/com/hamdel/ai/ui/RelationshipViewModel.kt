@@ -83,6 +83,20 @@ class RelationshipViewModel(
         }
     }
 
+    fun refreshRelationshipAnalysis() {
+        viewModelScope.launch {
+            if (!hasMutualConsent()) {
+                statusMessage.value = "برای تحلیل همه داده‌های حافظه رابطه، رضایت هر دو نفر باید فعال باشد."
+                return@launch
+            }
+            isBusy.value = true
+            runCatching { repository.analyzeRelationshipMemory(dashboard.value) }
+                .onSuccess { statusMessage.value = "تحلیل حافظه رابطه به‌روزرسانی شد و نمودارها از همه داده‌های موجود ساخته شدند." }
+                .onFailure { statusMessage.value = "به‌روزرسانی تحلیل انجام نشد: ${it.message ?: "خطای نامشخص"}" }
+            isBusy.value = false
+        }
+    }
+
     fun transcribeAndAnalyze(title: String, audioFile: File) {
         viewModelScope.launch {
             if (!hasMutualConsent()) {
