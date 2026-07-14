@@ -7,6 +7,7 @@ import com.hamdel.ai.data.model.ContactMessage
 import com.hamdel.ai.data.model.DashboardState
 import com.hamdel.ai.data.model.MessageSimulation
 import com.hamdel.ai.data.model.PersonProfile
+import com.hamdel.ai.data.model.ProfileSuggestion
 import com.hamdel.ai.data.model.RelationshipEvent
 import com.hamdel.ai.data.model.RelationshipMetric
 import com.hamdel.ai.domain.RelationshipAiEngine
