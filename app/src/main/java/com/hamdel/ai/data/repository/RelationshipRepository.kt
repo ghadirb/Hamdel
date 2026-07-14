@@ -34,8 +34,12 @@ class RelationshipRepository(
         )
     }
 
-    val dashboard: Flow<DashboardState> = combine(baseDashboard, dao.observeContactMessages()) { state, messages ->
-        state.copy(contactMessages = messages)
+    val dashboard: Flow<DashboardState> = combine(
+        baseDashboard,
+        dao.observeContactMessages(),
+        dao.observeProfileSuggestions()
+    ) { state, messages, suggestions ->
+        state.copy(contactMessages = messages, profileSuggestions = suggestions)
     }
 
     /** Removes only the known records created by versions that shipped demo content. */
@@ -121,6 +125,43 @@ class RelationshipRepository(
         return aiEngine.simulateMessage(message)
     }
 
+    suspend fun createProfileSuggestions(state: DashboardState) {
+        val profiles = state.profiles.associateBy { it.id }
+        val suggestions = aiEngine.suggestProfileUpdates(state)
+            .filter { it.profileId in profiles && it.field in EDITABLE_PROFILE_FIELDS && it.proposedValue.isNotBlank() }
+            .map { draft ->
+                ProfileSuggestion(
+                    id = UUID.randomUUID().toString(),
+                    profileId = draft.profileId,
+                    profileName = profiles.getValue(draft.profileId).name,
+                    field = draft.field,
+                    proposedValue = draft.proposedValue.take(500),
+                    reason = draft.reason.take(600),
+                    confidence = draft.confidence.coerceIn(0f, 1f),
+                    createdAt = System.currentTimeMillis()
+                )
+            }
+        dao.upsertProfileSuggestions(suggestions)
+    }
+
+    suspend fun applyProfileSuggestion(suggestion: ProfileSuggestion, state: DashboardState) {
+        val profile = state.profiles.firstOrNull { it.id == suggestion.profileId } ?: return
+        val updated = when (suggestion.field) {
+            "communicationStyle" -> profile.copy(communicationStyle = suggestion.proposedValue)
+            "loveLanguage" -> profile.copy(loveLanguage = suggestion.proposedValue)
+            "traits" -> profile.copy(traits = suggestion.proposedValue)
+            "dailyHabits" -> profile.copy(dailyHabits = suggestion.proposedValue)
+            "personalityType" -> profile.copy(personalityType = suggestion.proposedValue)
+            else -> profile
+        }
+        dao.upsertProfile(updated)
+        dao.deleteProfileSuggestion(suggestion.id)
+    }
+
+    suspend fun dismissProfileSuggestion(id: String) {
+        dao.deleteProfileSuggestion(id)
+    }
+
     private suspend fun updateMetricsFrom(report: ConversationReport) {
         val stress = ((report.sarcasmRisk + report.controlRisk + (100 - report.empathy)) / 3).coerceIn(0, 100)
         val intimacy = ((report.empathy + report.emotionalSupport) / 2).coerceIn(0, 100)
@@ -159,5 +200,15 @@ class RelationshipRepository(
         } else {
             listOf("امروز از یک رفتار خوب طرف مقابل مشخصا قدردانی کنید.", "یک برنامه کوتاه دونفره برای آخر هفته بچینید.", "درباره یکی از اهداف مشترک گفتگو کنید.")
         }
+    }
+
+    private companion object {
+        val EDITABLE_PROFILE_FIELDS = setOf(
+            "communicationStyle",
+            "loveLanguage",
+            "traits",
+            "dailyHabits",
+            "personalityType"
+        )
     }
 }

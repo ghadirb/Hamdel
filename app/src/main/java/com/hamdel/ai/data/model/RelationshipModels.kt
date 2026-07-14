@@ -66,6 +66,18 @@ data class ContactMessage(
     val direction: String
 )
 
+@Entity(tableName = "profile_suggestions")
+data class ProfileSuggestion(
+    @PrimaryKey val id: String,
+    val profileId: String,
+    val profileName: String,
+    val field: String,
+    val proposedValue: String,
+    val reason: String,
+    val confidence: Float,
+    val createdAt: Long
+)
+
 data class DashboardState(
     val metrics: List<RelationshipMetric> = emptyList(),
     val warnings: List<String> = emptyList(),
@@ -73,7 +85,8 @@ data class DashboardState(
     val events: List<RelationshipEvent> = emptyList(),
     val reports: List<ConversationReport> = emptyList(),
     val profiles: List<PersonProfile> = emptyList(),
-    val contactMessages: List<ContactMessage> = emptyList()
+    val contactMessages: List<ContactMessage> = emptyList(),
+    val profileSuggestions: List<ProfileSuggestion> = emptyList()
 )
 
 data class AiReply(
@@ -88,4 +101,12 @@ data class MessageSimulation(
     val hurtRisk: Int,
     val improvedMessage: String,
     val notes: List<String>
+)
+
+data class ProfileSuggestionDraft(
+    val profileId: String,
+    val field: String,
+    val proposedValue: String,
+    val reason: String,
+    val confidence: Float
 )

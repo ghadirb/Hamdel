@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.Uri
 import com.hamdel.ai.data.backup.AutoBackupWorker
 import com.hamdel.ai.data.backup.BackupManager
+import com.hamdel.ai.data.analysis.AutoAnalysisWorker
 import com.hamdel.ai.data.settings.HamdelPreferences
 import com.hamdel.ai.data.sms.ContactMessageSyncWorker
 import com.hamdel.ai.data.sms.ContactSmsImporter
@@ -49,6 +50,7 @@ class RelationshipViewModel(
     val isSimulationBusy = MutableStateFlow(false)
     val startupMessage = MutableStateFlow<StartupMessage?>(null)
     val autoBackupEnabled = MutableStateFlow(preferences.autoBackupEnabled)
+    val autoAnalysisEnabled = MutableStateFlow(preferences.autoAnalysisEnabled)
     val messageSyncEnabled = MutableStateFlow(preferences.messageSyncEnabled)
     val monitoredContactName = MutableStateFlow(preferences.monitoredContactName)
 
@@ -95,6 +97,39 @@ class RelationshipViewModel(
                 .onFailure { statusMessage.value = "به‌روزرسانی تحلیل انجام نشد: ${it.message ?: "خطای نامشخص"}" }
             isBusy.value = false
         }
+    }
+
+    fun setAutoAnalysis(enabled: Boolean) {
+        preferences.autoAnalysisEnabled = enabled
+        autoAnalysisEnabled.value = enabled
+        if (enabled) AutoAnalysisWorker.schedule(appContext) else AutoAnalysisWorker.cancel(appContext)
+    }
+
+    fun generateProfileSuggestions() {
+        viewModelScope.launch {
+            if (!hasMutualConsent()) {
+                statusMessage.value = "برای ساخت پیشنهاد پروفایل، رضایت هر دو نفر باید فعال باشد."
+                return@launch
+            }
+            isBusy.value = true
+            runCatching { repository.createProfileSuggestions(dashboard.value) }
+                .onSuccess { statusMessage.value = "پیشنهادهای پروفایل آماده شد؛ قبل از اعمال آن‌ها را بررسی کنید." }
+                .onFailure { statusMessage.value = "ساخت پیشنهاد پروفایل انجام نشد: ${it.message ?: "خطای نامشخص"}" }
+            isBusy.value = false
+        }
+    }
+
+    fun applyProfileSuggestion(id: String) {
+        viewModelScope.launch {
+            dashboard.value.profileSuggestions.firstOrNull { it.id == id }?.let {
+                repository.applyProfileSuggestion(it, dashboard.value)
+                statusMessage.value = "پیشنهاد پس از تأیید شما در پروفایل اعمال شد."
+            }
+        }
+    }
+
+    fun dismissProfileSuggestion(id: String) {
+        viewModelScope.launch { repository.dismissProfileSuggestion(id) }
     }
 
     fun transcribeAndAnalyze(title: String, audioFile: File) {

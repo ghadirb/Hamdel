@@ -8,6 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.hamdel.ai.data.model.ConversationReport
 import com.hamdel.ai.data.model.ContactMessage
+import com.hamdel.ai.data.model.ProfileSuggestion
 import com.hamdel.ai.data.model.PersonProfile
 import com.hamdel.ai.data.model.RelationshipEvent
 import com.hamdel.ai.data.model.RelationshipMetric
@@ -18,9 +19,10 @@ import com.hamdel.ai.data.model.RelationshipMetric
         RelationshipMetric::class,
         RelationshipEvent::class,
         ConversationReport::class,
-        ContactMessage::class
+        ContactMessage::class,
+        ProfileSuggestion::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class HamdelDatabase : RoomDatabase() {
@@ -36,7 +38,7 @@ abstract class HamdelDatabase : RoomDatabase() {
                     context.applicationContext,
                     HamdelDatabase::class.java,
                     "hamdel.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
             }
         }
 
@@ -52,6 +54,17 @@ abstract class HamdelDatabase : RoomDatabase() {
                     "CREATE TABLE IF NOT EXISTS contact_messages (" +
                         "id TEXT NOT NULL PRIMARY KEY, contactName TEXT NOT NULL, address TEXT NOT NULL, " +
                         "body TEXT NOT NULL, timestamp INTEGER NOT NULL, direction TEXT NOT NULL)"
+                )
+            }
+        }
+
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS profile_suggestions (" +
+                        "id TEXT NOT NULL PRIMARY KEY, profileId TEXT NOT NULL, profileName TEXT NOT NULL, " +
+                        "field TEXT NOT NULL, proposedValue TEXT NOT NULL, reason TEXT NOT NULL, " +
+                        "confidence REAL NOT NULL, createdAt INTEGER NOT NULL)"
                 )
             }
         }

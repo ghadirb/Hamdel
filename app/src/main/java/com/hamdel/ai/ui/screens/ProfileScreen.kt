@@ -43,8 +43,10 @@ fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     val state by viewModel.dashboard.collectAsState()
     val status by viewModel.statusMessage.collectAsState()
     val autoBackup by viewModel.autoBackupEnabled.collectAsState()
+    val autoAnalysis by viewModel.autoAnalysisEnabled.collectAsState()
     val messageSync by viewModel.messageSyncEnabled.collectAsState()
     val savedContactName by viewModel.monitoredContactName.collectAsState()
+    val busy by viewModel.isBusy.collectAsState()
     var editing by remember { mutableStateOf<PersonProfile?>(null) }
     var showNewForm by remember { mutableStateOf(false) }
     var contactName by remember(savedContactName) { mutableStateOf(savedContactName) }
@@ -118,6 +120,10 @@ fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                         Switch(checked = autoBackup, onCheckedChange = viewModel::setAutoBackup)
                         Text("پشتیبان‌گیری خودکار روزانه")
                     }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Switch(checked = autoAnalysis, onCheckedChange = viewModel::setAutoAnalysis)
+                        Text("تحلیل روزانه خودکار با رضایت دوطرفه")
+                    }
                 }
             }
         }
@@ -149,6 +155,35 @@ fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                         enabled = messageSync && contactName.isNotBlank(),
                         onClick = { viewModel.configureContactMessageSync(contactName, true); viewModel.importContactMessages() }
                     ) { Text("خواندن و هم‌رسانی اکنون") }
+                }
+            }
+        }
+        item {
+            Card(modifier = Modifier.padding(16.dp)) {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("پیشنهادهای پروفایل", fontWeight = FontWeight.SemiBold)
+                    Text("مدل فقط پیشنهاد می‌دهد و هیچ فیلدی را بدون تأیید شما تغییر نمی‌دهد.", style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(
+                        enabled = !busy && (state.contactMessages.isNotEmpty() || state.reports.isNotEmpty()),
+                        onClick = viewModel::generateProfileSuggestions
+                    ) { Text(if (busy) "در حال بررسی..." else "ساخت پیشنهاد از پیام‌ها و گفتگوها") }
+                    if (state.profileSuggestions.isEmpty()) {
+                        Text("هنوز پیشنهادی ثبت نشده است.", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        state.profileSuggestions.forEach { suggestion ->
+                            Text("${suggestion.profileName} - ${profileFieldLabel(suggestion.field)}", fontWeight = FontWeight.Medium)
+                            Text(suggestion.proposedValue)
+                            Text("دلیل: ${suggestion.reason}", style = MaterialTheme.typography.bodySmall)
+                            Text("اطمینان: ${(suggestion.confidence * 100).toInt()}٪", style = MaterialTheme.typography.bodySmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Button(onClick = { viewModel.applyProfileSuggestion(suggestion.id) }) { Text("تأیید و اعمال") }
+                                OutlinedButton(onClick = { viewModel.dismissProfileSuggestion(suggestion.id) }) { Text("رد") }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -267,6 +302,15 @@ private fun ProfileField(label: String, value: String, onChange: (String) -> Uni
         label = { Text(label) },
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+private fun profileFieldLabel(field: String): String = when (field) {
+    "communicationStyle" -> "سبک ارتباط"
+    "loveLanguage" -> "زبان عشق"
+    "traits" -> "ویژگی‌های اخلاقی"
+    "dailyHabits" -> "عادت‌های روزانه"
+    "personalityType" -> "تیپ شخصیتی"
+    else -> field
 }
 
 @Composable

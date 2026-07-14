@@ -5,6 +5,7 @@ import com.hamdel.ai.data.model.AiReply
 import com.hamdel.ai.data.model.ConversationReport
 import com.hamdel.ai.data.model.DashboardState
 import com.hamdel.ai.data.model.MessageSimulation
+import com.hamdel.ai.data.model.ProfileSuggestionDraft
 import com.hamdel.ai.data.remote.ChatCompletionClient
 import org.json.JSONObject
 import java.io.IOException
@@ -130,6 +131,32 @@ class RemoteRelationshipAiEngine(
                 (0 until arr.length()).map { arr.optString(it) }.filter { it.isNotBlank() }
             } ?: emptyList()
         )
+    }
+
+    override suspend fun suggestProfileUpdates(context: DashboardState): List<ProfileSuggestionDraft> {
+        val system = """
+            تو بر اساس شواهد محدودِ پیام‌ها و گفتگوها، فقط پیشنهادهای قابل بازبینی برای پروفایل رابطه می‌سازی.
+            هرگز نام، سن، شغل، محل زندگی، اهداف، ارزش‌ها یا باورها را پیشنهاد نده و هیچ واقعیتی را قطعی فرض نکن.
+            فقط یکی از این fieldها مجاز است: communicationStyle, loveLanguage, traits, dailyHabits, personalityType.
+            فقط JSON معتبر برگردان:
+            {"suggestions":[{"profileId":"شناسه پروفایل", "field":"یکی از فیلدهای مجاز", "proposedValue":"پیشنهاد کوتاه", "reason":"شواهد کوتاه", "confidence":0.0}]}
+            حداکثر 5 پیشنهاد بده. اگر شواهد کافی نیست suggestions را خالی برگردان.
+        """.trimIndent()
+        val profiles = context.profiles.joinToString("\n") { "${it.id} | ${it.name} | سبک فعلی=${it.communicationStyle} | زبان عشق=${it.loveLanguage} | ویژگی‌ها=${it.traits}" }
+        val messages = context.contactMessages.take(40).reversed().joinToString("\n") { "[${it.direction}] ${it.body.take(350)}" }
+        val reports = context.reports.take(5).joinToString("\n") { it.summary.take(500) }
+        val json = completeAsJson(system, "پروفایل‌ها:\n$profiles\nپیام‌ها:\n$messages\nتحلیل‌های قبلی:\n$reports")
+        val array = json.optJSONArray("suggestions") ?: return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            ProfileSuggestionDraft(
+                profileId = item.optString("profileId"),
+                field = item.optString("field"),
+                proposedValue = item.optString("proposedValue"),
+                reason = item.optString("reason"),
+                confidence = item.optDouble("confidence", 0.5).toFloat()
+            )
+        }
     }
 
     private suspend fun completeAsJson(system: String, user: String): JSONObject {
