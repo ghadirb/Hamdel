@@ -1,0 +1,5 @@
+# Copy to release-signing.properties locally. Never commit real signing credentials.
+RELEASE_STORE_FILE=keystore/hamdel-release.jks
+RELEASE_STORE_PASSWORD=replace-with-keystore-password
+RELEASE_KEY_ALIAS=hamdel
+RELEASE_KEY_PASSWORD=replace-with-key-password

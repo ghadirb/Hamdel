@@ -10,3 +10,5 @@ captures/
 *.keystore
 *.jks
 secrets.properties
+release-signing.properties
+keystore/

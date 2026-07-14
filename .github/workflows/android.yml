@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HAS_RELEASE_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && 'true' || 'false' }}
 
     steps:
       - name: Checkout
@@ -33,9 +35,37 @@ jobs:
       - name: Build debug APK
         run: gradle :app:assembleDebug
 
+      - name: Configure release signing
+        if: ${{ github.event_name == 'push' && env.HAS_RELEASE_SIGNING == 'true' }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/hamdel-release.jks"
+          cat > release-signing.properties <<EOF
+          RELEASE_STORE_FILE=$RUNNER_TEMP/hamdel-release.jks
+          RELEASE_STORE_PASSWORD=$KEYSTORE_PASSWORD
+          RELEASE_KEY_ALIAS=$KEY_ALIAS
+          RELEASE_KEY_PASSWORD=$KEY_PASSWORD
+          EOF
+
+      - name: Build signed release APK
+        if: ${{ github.event_name == 'push' && env.HAS_RELEASE_SIGNING == 'true' }}
+        run: gradle :app:assembleRelease
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
           name: hamdel-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload signed release APK
+        if: ${{ github.event_name == 'push' && env.HAS_RELEASE_SIGNING == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: hamdel-release-apk
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error

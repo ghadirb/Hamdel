@@ -13,6 +13,16 @@ val secretsProperties = Properties().apply {
     }
 }
 
+val releaseSigningProperties = Properties().apply {
+    val signingFile = rootProject.file("release-signing.properties")
+    if (signingFile.exists()) signingFile.inputStream().use { load(it) }
+}
+val releaseStoreFile = releaseSigningProperties.getProperty("RELEASE_STORE_FILE")
+val releaseStorePassword = releaseSigningProperties.getProperty("RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = releaseSigningProperties.getProperty("RELEASE_KEY_ALIAS")
+val releaseKeyPassword = releaseSigningProperties.getProperty("RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.hamdel.ai"
     compileSdk = 35
@@ -47,6 +57,21 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes.named("release") {
+        if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
     }
 
     compileOptions {
