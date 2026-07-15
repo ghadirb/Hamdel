@@ -1,0 +1,15 @@
+{
+  "name": "hamdel-purchase-server",
+  "version": "1.0.0",
+  "description": "Server-side purchase verification for Hamdel (Cafe Bazaar + Myket in-app billing).",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

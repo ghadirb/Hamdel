@@ -5,6 +5,7 @@ import com.hamdel.ai.data.local.HamdelDatabase
 import com.hamdel.ai.data.remote.GapgptAudioClient
 import com.hamdel.ai.data.remote.GapgptClient
 import com.hamdel.ai.data.remote.LiaraClient
+import com.hamdel.ai.data.remote.PurchaseVerificationClient
 import com.hamdel.ai.data.remote.SecureKeyManager
 import com.hamdel.ai.data.remote.StartupMessageClient
 import com.hamdel.ai.data.repository.RelationshipRepository
@@ -71,6 +72,8 @@ class HamdelApplication : Application() {
     }
 
     val contactSmsImporter by lazy { ContactSmsImporter(this) }
+
+    val purchaseVerificationClient by lazy { PurchaseVerificationClient(httpClient) }
 
     val database by lazy { HamdelDatabase.getDatabase(this) }
 

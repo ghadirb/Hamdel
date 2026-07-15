@@ -17,6 +17,10 @@ val billingProperties = Properties().apply {
     val billingFile = rootProject.file("billing.properties")
     if (billingFile.exists()) billingFile.inputStream().use { load(it) }
 }
+val serverProperties = Properties().apply {
+    val serverFile = rootProject.file("server.properties")
+    if (serverFile.exists()) serverFile.inputStream().use { load(it) }
+}
 fun quotedBuildConfig(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
 val releaseSigningProperties = Properties().apply {
@@ -53,6 +57,16 @@ android {
             "KEYS_DECRYPT_PASSWORD",
             "\"${secretsProperties.getProperty("KEYS_DECRYPT_PASSWORD", "12345")}\""
         )
+        buildConfigField(
+            "String",
+            "HAMDEL_SERVER_BASE_URL",
+            quotedBuildConfig(serverProperties.getProperty("HAMDEL_SERVER_BASE_URL", ""))
+        )
+        buildConfigField(
+            "String",
+            "HAMDEL_SERVER_API_KEY",
+            quotedBuildConfig(serverProperties.getProperty("HAMDEL_SERVER_API_KEY", ""))
+        )
     }
 
     flavorDimensions += "store"
@@ -64,6 +78,10 @@ android {
             manifestPlaceholders["marketPermission"] = "com.farsitel.bazaar.permission.PAY_THROUGH_BAZAAR"
             buildConfigField("String", "STORE_ID", "\"bazaar\"")
             buildConfigField("String", "IAB_PUBLIC_KEY", quotedBuildConfig(billingProperties.getProperty("BAZAAR_IAB_PUBLIC_KEY", "")))
+            // Existing Bazaar products were created with these IDs. Keep them configurable
+            // so the two store catalogs never need to share product IDs.
+            buildConfigField("String", "MONTHLY_SKU", quotedBuildConfig(billingProperties.getProperty("BAZAAR_MONTHLY_SKU", "com.hamdel.ai")))
+            buildConfigField("String", "YEARLY_SKU", quotedBuildConfig(billingProperties.getProperty("BAZAAR_YEARLY_SKU", "hamdel_yearly")))
         }
         create("myket") {
             dimension = "store"
@@ -72,6 +90,8 @@ android {
             manifestPlaceholders["marketPermission"] = "ir.mservices.market.BILLING"
             buildConfigField("String", "STORE_ID", "\"myket\"")
             buildConfigField("String", "IAB_PUBLIC_KEY", quotedBuildConfig(billingProperties.getProperty("MYKET_IAB_PUBLIC_KEY", "")))
+            buildConfigField("String", "MONTHLY_SKU", quotedBuildConfig(billingProperties.getProperty("MYKET_MONTHLY_SKU", "com.hamdel.ai")))
+            buildConfigField("String", "YEARLY_SKU", quotedBuildConfig(billingProperties.getProperty("MYKET_YEARLY_SKU", "hamdel_yearly")))
         }
     }
 
@@ -136,6 +156,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.navigation:navigation-compose:2.7.7")
 

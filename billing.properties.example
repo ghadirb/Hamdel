@@ -1,3 +1,8 @@
 # Public RSA keys from each store's developer panel. Keep billing.properties local.
 BAZAAR_IAB_PUBLIC_KEY=
 MYKET_IAB_PUBLIC_KEY=
+# Bazaar's existing product IDs; change only if you delete and recreate those products.
+BAZAAR_MONTHLY_SKU=com.hamdel.ai
+BAZAAR_YEARLY_SKU=hamdel_yearly
+MYKET_MONTHLY_SKU=com.hamdel.ai
+MYKET_YEARLY_SKU=hamdel_yearly

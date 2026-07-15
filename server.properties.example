@@ -1,0 +1,10 @@
+# Copy to server.properties (gitignored) to point the app at your deployed verification server.
+#
+# Recommended (free): deploy server/apps-script/Code.gs as a Google Apps Script Web App and use
+# its .../exec URL here — Bazaar and Myket's APIs are reachable from Apps Script (confirmed by a
+# manual test), so no paid hosting is required.
+#
+# Alternative (Node/Express, for scale): deploy server/index.js anywhere Node runs (Liara, etc.)
+# and use that base URL here instead — see server/README.md for when to switch.
+HAMDEL_SERVER_BASE_URL=https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEPLOYMENT_ID/exec
+HAMDEL_SERVER_API_KEY=

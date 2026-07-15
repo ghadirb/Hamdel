@@ -1,6 +1,7 @@
 package com.hamdel.ai.data.settings
 
 import android.content.Context
+import java.util.UUID
 
 class HamdelPreferences(context: Context) {
     private val prefs = context.getSharedPreferences("hamdel_preferences", Context.MODE_PRIVATE)
@@ -29,6 +30,15 @@ class HamdelPreferences(context: Context) {
         get() = prefs.getInt(KEY_FREE_AI_CREDITS, 12)
         set(value) = prefs.edit().putInt(KEY_FREE_AI_CREDITS, value.coerceAtLeast(0)).apply()
 
+    /**
+     * Random per-install identifier (not tied to any personal account) sent to the purchase
+     * verification server so it knows which install a verified subscription belongs to.
+     */
+    val installId: String
+        get() = prefs.getString(KEY_INSTALL_ID, null) ?: UUID.randomUUID().toString().also {
+            prefs.edit().putString(KEY_INSTALL_ID, it).apply()
+        }
+
     companion object {
         private const val KEY_BACKUP_URI = "backup_uri"
         private const val KEY_AUTO_BACKUP = "auto_backup"
@@ -36,5 +46,6 @@ class HamdelPreferences(context: Context) {
         private const val KEY_AUTO_ANALYSIS = "auto_analysis"
         private const val KEY_CONTACT_NAME = "monitored_contact_name"
         private const val KEY_FREE_AI_CREDITS = "free_ai_credits"
+        private const val KEY_INSTALL_ID = "install_id"
     }
 }

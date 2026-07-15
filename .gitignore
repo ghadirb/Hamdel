@@ -11,5 +11,9 @@ captures/
 *.jks
 secrets.properties
 billing.properties
+server.properties
 release-signing.properties
 keystore/
+server/node_modules/
+server/.env
+server/data/

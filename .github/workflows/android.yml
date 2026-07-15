@@ -44,6 +44,8 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           BAZAAR_IAB_PUBLIC_KEY: ${{ secrets.BAZAAR_IAB_PUBLIC_KEY }}
           MYKET_IAB_PUBLIC_KEY: ${{ secrets.MYKET_IAB_PUBLIC_KEY }}
+          HAMDEL_SERVER_BASE_URL: ${{ secrets.HAMDEL_SERVER_BASE_URL }}
+          HAMDEL_SERVER_API_KEY: ${{ secrets.HAMDEL_SERVER_API_KEY }}
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/hamdel-release.jks"
           cat > release-signing.properties <<EOF
@@ -55,6 +57,10 @@ jobs:
           cat > billing.properties <<EOF
           BAZAAR_IAB_PUBLIC_KEY=$BAZAAR_IAB_PUBLIC_KEY
           MYKET_IAB_PUBLIC_KEY=$MYKET_IAB_PUBLIC_KEY
+          EOF
+          cat > server.properties <<EOF
+          HAMDEL_SERVER_BASE_URL=$HAMDEL_SERVER_BASE_URL
+          HAMDEL_SERVER_API_KEY=$HAMDEL_SERVER_API_KEY
           EOF
 
       - name: Build signed release APK

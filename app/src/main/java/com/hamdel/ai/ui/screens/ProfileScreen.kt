@@ -6,34 +6,46 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hamdel.ai.data.model.PersonProfile
 import com.hamdel.ai.data.billing.SubscriptionPlan
+import com.hamdel.ai.data.billing.SubscriptionState
 import com.hamdel.ai.ui.RelationshipViewModel
 import com.hamdel.ai.ui.components.ScreenFrame
 import java.util.UUID
@@ -91,27 +103,12 @@ fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
             }
         }
         item {
-            Card(modifier = Modifier.padding(16.dp)) {
-                androidx.compose.foundation.layout.Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text("اشتراک و سهمیه هوش مصنوعی", fontWeight = FontWeight.SemiBold)
-                    val planText = when (subscription.plan) {
-                        SubscriptionPlan.Monthly -> "دسترسی ویژه ماهانه فعال است"
-                        SubscriptionPlan.Yearly -> "دسترسی ویژه سالانه فعال است"
-                        SubscriptionPlan.Free -> "${subscription.freeCreditsRemaining} استفاده رایگان باقی مانده"
-                    }
-                    Text(planText)
-                    Text(subscription.status, style = MaterialTheme.typography.bodySmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(onClick = { viewModel.purchaseSubscription(SubscriptionPlan.Monthly) }) { Text("ماهانه - ۱۴۹ هزار تومان") }
-                        OutlinedButton(onClick = { viewModel.purchaseSubscription(SubscriptionPlan.Yearly) }) { Text("سالانه - ۱٬۲۹۰ هزار تومان") }
-                    }
-                    OutlinedButton(onClick = viewModel::restorePurchases) { Text("بازیابی خریدها") }
-                    Text("قیمت و شرایط نهایی در صفحه پرداخت فروشگاه نمایش داده می‌شود.", style = MaterialTheme.typography.bodySmall)
-                }
-            }
+            SubscriptionCard(
+                subscription = subscription,
+                onSelectMonthly = { viewModel.purchaseSubscription(SubscriptionPlan.Monthly) },
+                onSelectYearly = { viewModel.purchaseSubscription(SubscriptionPlan.Yearly) },
+                onRestore = viewModel::restorePurchases
+            )
         }
         if (showNewForm || editing != null) {
             item {
@@ -231,6 +228,122 @@ fun ProfileScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
                     Text("پیام‌های ذخیره‌شده: ${state.contactMessages.size}", fontWeight = FontWeight.Medium)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionCard(
+    subscription: SubscriptionState,
+    onSelectMonthly: () -> Unit,
+    onSelectYearly: () -> Unit,
+    onRestore: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("اشتراک و سهمیه هوش مصنوعی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+            val planText = when (subscription.plan) {
+                SubscriptionPlan.Monthly -> "دسترسی ویژه ماهانه فعال است"
+                SubscriptionPlan.Yearly -> "دسترسی ویژه سالانه فعال است"
+                SubscriptionPlan.Free -> "${subscription.freeCreditsRemaining} استفاده رایگان باقی مانده"
+            }
+            Text(planText, style = MaterialTheme.typography.bodyMedium)
+            subscription.expiresAtMillis?.let { expiresAt ->
+                Text("تا تاریخ ${formatExpiry(expiresAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(subscription.status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                PlanOption(
+                    modifier = Modifier.weight(1f),
+                    title = "ماهانه",
+                    isActive = subscription.plan == SubscriptionPlan.Monthly,
+                    onClick = onSelectMonthly
+                )
+                PlanOption(
+                    modifier = Modifier.weight(1f),
+                    title = "سالانه",
+                    badge = "بیشترین صرفه‌جویی",
+                    isActive = subscription.plan == SubscriptionPlan.Yearly,
+                    onClick = onSelectYearly
+                )
+            }
+
+            TextButton(
+                onClick = onRestore,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Outlined.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("بازیابی خریدهای قبلی")
+            }
+
+            Text(
+                "قیمت و شرایط نهایی فقط در صفحه پرداخت فروشگاه (بازار یا مایکت) نمایش داده می‌شود.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private fun formatExpiry(epochMillis: Long): String {
+    val formatter = java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale.US)
+    return formatter.format(java.util.Date(epochMillis))
+}
+
+@Composable
+private fun PlanOption(
+    modifier: Modifier = Modifier,
+    title: String,
+    badge: String? = null,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+        border = BorderStroke(if (isActive) 2.dp else 1.dp, borderColor),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp, horizontal = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                badge ?: " ",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+            Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (isActive) "فعال" else " ",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

@@ -24,7 +24,11 @@ class MainActivity : ComponentActivity() {
                     startupMessageClient = app.startupMessageClient,
                     appContext = app.applicationContext,
                     contactSmsImporter = app.contactSmsImporter,
-                    subscriptionManager = SubscriptionManager(this@MainActivity, HamdelPreferences(app.applicationContext))
+                    subscriptionManager = SubscriptionManager(
+                        activity = this@MainActivity,
+                        preferences = HamdelPreferences(app.applicationContext),
+                        verificationClient = app.purchaseVerificationClient
+                    )
                 ) as T
             }
         }

@@ -14,7 +14,7 @@
 
 خروجی‌های مستقل ساخته می‌شوند:
 
-- `bazaar`: اشتراک تمدیدشونده واقعی با SKUهای `hamdel_premium_monthly` و `hamdel_premium_yearly`
+- `bazaar`: اشتراک تمدیدشونده واقعی با SKUهای فعلی `com.hamdel.ai` (ماهانه) و `hamdel_yearly` (سالانه)
 - `myket`: مایکت طبق مستنداتش اشتراک خودکار ندارد؛ همین SKUها باید به صورت «بسته زمانی مصرف‌شدنی» تعریف شوند و اعتبار زمانی فقط پس از تایید سرور فعال شود.
 
 قیمت پیشنهادی:
@@ -27,7 +27,7 @@
 ### آماده‌سازی پنل‌ها
 
 1. نام بسته را در هر دو پنل دقیقا `com.hamdel.ai` ثبت کنید.
-2. در بازار، دو محصول اشتراکی با SKUهای بالا بسازید.
+2. در بازار، محصولات اشتراکی موجود را با همان SKUهای `com.hamdel.ai` و `hamdel_yearly` نگه دارید؛ شناسه محصول پس از ایجاد نباید حدسی تغییر داده شود.
 3. در مایکت، دو محصول مصرف‌شدنی با همان SKUها بسازید؛ مصرف محصول باید فقط بعد از تایید سرور و ثبت اعتبار زمانی انجام شود.
 4. کلید RSA عمومی هر فروشگاه را از پنل همان فروشگاه بردارید.
 5. فایل محلی `billing.properties` را از روی `billing.properties.example` ایجاد کنید و کلیدها را در آن بگذارید. این فایل در Git قرار نمی‌گیرد.
@@ -35,13 +35,33 @@
 ```properties
 BAZAAR_IAB_PUBLIC_KEY=...
 MYKET_IAB_PUBLIC_KEY=...
+BAZAAR_MONTHLY_SKU=com.hamdel.ai
+BAZAAR_YEARLY_SKU=hamdel_yearly
 ```
 
 برای ساخت امن Release در GitHub، همین دو مقدار را به صورت Secrets با نام‌های `BAZAAR_IAB_PUBLIC_KEY` و `MYKET_IAB_PUBLIC_KEY` اضافه کنید. همچنین چهار Secret امضا لازم است: `ANDROID_KEYSTORE_BASE64`، `KEYSTORE_PASSWORD`، `KEY_ALIAS` و `KEY_PASSWORD`.
 
+### تایید خرید سمت سرور (پیاده‌سازی شده)
+
+طبق مستندات امنیتی هر دو فروشگاه («ملاحظات امنیتی» بازار و «توصیه‌های امنیتی» مایکت)، تایید خرید نباید فقط سمت کلاینت انجام شود. این پروژه یک سرور کوچک Node.js در [`server/`](server/README.md) دارد که بعد از هر خرید، `purchaseToken` را مستقیماً از بازار (`pardakht.cafebazaar.ir`) یا مایکت (`developer.myket.ir`) استعلام می‌کند، اعتبار (انقضا) را محاسبه و ذخیره می‌کند، و اپ در هر بار اجرا وضعیت را از همان سرور می‌خواند — این تنها راهی است که اعتبار «بسته‌های زمانی» مایکت (که اشتراک واقعی نیستند) بعد از مصرف‌شدن محصول هم باقی می‌ماند.
+
+برای فعال‌سازی سمت اپ:
+
+1. سرور را طبق [`server/README.md`](server/README.md) دیپلوی کنید. **پیشنهاد: Google Apps Script رایگان** — برخلاف زرین‌پال (که در Maliar Pro از IPهای خارج ایران مسدود بود)، تست مستقیم نشان داد بازار و مایکت از Apps Script قابل‌دسترسی‌اند، پس نیازی به هاست پولی مثل لیارا از ابتدا نیست؛ فایل آماده در [`server/apps-script/Code.gs`](server/apps-script/Code.gs) است. اگر بعداً تعداد کاربران زیاد شد، `server/index.js` (Node، قابل دیپلوی روی لیارا) جایگزین معادل‌تری است.
+2. فایل `server.properties` را از روی `server.properties.example` بسازید:
+
+```properties
+HAMDEL_SERVER_BASE_URL=https://your-hamdel-server.example.com
+HAMDEL_SERVER_API_KEY=...
+```
+
+3. برای CI/Release، دو Secret دیگر هم اضافه کنید: `HAMDEL_SERVER_BASE_URL` و `HAMDEL_SERVER_API_KEY`.
+
+اگر `server.properties` ست نشود، اپ همچنان بیلد و اجرا می‌شود ولی فقط به تایید محلی فروشگاه بسنده می‌کند (`PurchaseVerificationClient.isConfigured == false`) — یعنی دقیقاً همان وضعیت قبلی، نه یک حالت خراب.
+
 ### نکته امنیتی مهم
 
-کلید API بازار و `X-Access-Token` مایکت هرگز نباید در APK یا GitHub Secrets قابل دسترس کلاینت قرار بگیرند. برنامه باید `purchaseToken`، داده خرید و امضای آن را به endpoint سرور شما بفرستد؛ سرور، خرید بازار یا مایکت را با API رسمی اعتبارسنجی و سپس دسترسی زمانی را ثبت می‌کند. بدون این backend، پرداخت کلاینتی برای انتشار مالی نهایی امن نیست.
+کلید API بازار (`CAFEBAZAAR-PISHKHAN-API-SECRET`) و `X-Access-Token` مایکت هرگز نباید در APK یا در ریپوی کلاینت قرار بگیرند؛ این‌ها فقط باید در متغیرهای محیطی سرور (`server/.env`) باشند. اپ فقط `installId` (شناسه‌ی تصادفی نصب)، نام فروشگاه، SKU و `purchaseToken` را به سرور خودتان می‌فرستد.
 
 ## بیلد
 
@@ -57,6 +77,26 @@ app/build/outputs/apk/myket/debug/
 ## Google Drive
 
 فعلا اتصال خودکار `appDataFolder` عمدا پیاده‌سازی نشده است. برای مرحله بعد، Google Drive API، OAuth Consent Screen و Android OAuth Client با package `com.hamdel.ai` و SHA-1 امضای Release را آماده نگه دارید.
+
+## انتشار در بازار و مایکت
+
+**کافه‌بازار:**
+
+1. حساب توسعه‌دهنده در پیشخان بازار (`developer.cafebazaar.ir`) بسازید و برنامه‌ای دقیقاً با پکیج `com.hamdel.ai` ثبت کنید.
+2. خروجی فلیور `bazaar` را آپلود کنید (`app/build/outputs/apk/bazaar/...` یا `bundleBazaarRelease`).
+3. دو محصول درون‌برنامه‌ای از نوع **اشتراک** با SKUهای ثبت‌شده‌ی `com.hamdel.ai` و `hamdel_yearly` نگه دارید و قیمت واقعی را در پنل تعیین کنید.
+4. از «پیشخان بازار > برنامه‌تان > API پیشخان بازار > دریافت توکن جدید» یک `CAFEBAZAAR-PISHKHAN-API-SECRET` بگیرید و در `server/.env` بگذارید (نه در اپ).
+5. کلید عمومی RSA پرداخت را هم جدا از این توکن، از همان پنل بردارید و در `billing.properties` بگذارید.
+
+**مایکت:**
+
+1. حساب توسعه‌دهنده در `developer.myket.ir` بسازید، برنامه را با همان پکیج ثبت کنید.
+2. خروجی فلیور `myket` را آپلود کنید.
+3. چون مایکت اشتراک تمدیدشونده ندارد، دو محصول **مصرف‌شدنی** با همان دو SKU بسازید؛ مصرف محصول را فقط بعد از تایید سرور انجام دهید.
+4. از پنل، بخش محصولات درون‌برنامه‌ای، `X-Access-Token` را بگیرید و در `server/.env` بگذارید.
+5. کلید عمومی RSA مایکت را در `billing.properties` بگذارید.
+
+آیکون آماده‌ی هر دو فروشگاه: [assets/hamdel-myket-icon.png](assets/hamdel-myket-icon.png).
 
 ## حریم خصوصی
 
