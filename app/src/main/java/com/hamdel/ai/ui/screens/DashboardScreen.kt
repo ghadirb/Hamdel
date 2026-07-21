@@ -50,7 +50,7 @@ fun DashboardScreen(viewModel: RelationshipViewModel, padding: PaddingValues) {
     ) {
         item {
             ScreenFrame(
-                title = "همدل",
+                title = "همراه دل",
                 subtitle = "خلاصه وضعیت رابطه، هشدارها و پیشنهادهای امروز"
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
